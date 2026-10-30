@@ -2,16 +2,30 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import anywidget from "@anywidget/vite";
 
-// @speckle/viewer and three.js stay out of the bundle: the widget imports them from esm.sh, at
-// the exact versions package.json pins. ?target=es2022 on every URL makes esm.sh serve the
-// viewer's own three.js import and ours from one module, so the markers we add are the
-// viewer's three.js objects.
+// @speckle/viewer, three.js and 3d-tiles-renderer stay out of the bundles: the widgets import
+// them from esm.sh, at the exact versions package.json pins. ?target=es2022 on every URL makes
+// esm.sh serve the viewer's own three.js import and ours from one module, so the markers we
+// add are the viewer's three.js objects. A package that has three as a peer dependency
+// (3d-tiles-renderer) would get esm.sh's latest three.js unless &deps pins the viewer's.
 const { dependencies } = JSON.parse(readFileSync(new URL("package.json", import.meta.url)));
+const THREE_PEERS = new Set(["3d-tiles-renderer"]);
+// Modules of the dependencies that the widgets import by path
+const SUBPATHS = [
+  "three/examples/jsm/loaders/GLTFLoader.js",
+  "three/examples/jsm/libs/meshopt_decoder.module.js",
+];
+
+function esmShUrl(specifier) {
+  const name = Object.keys(dependencies).find(
+    (dependency) => specifier === dependency || specifier.startsWith(`${dependency}/`),
+  );
+  const path = specifier.slice(name.length);
+  const deps = THREE_PEERS.has(name) ? `&deps=three@${dependencies.three}` : "";
+  return `https://esm.sh/${name}@${dependencies[name]}${path}?target=es2022${deps}`;
+}
+
 export const ESM_SH = Object.fromEntries(
-  Object.entries(dependencies).map(([name, version]) => [
-    name,
-    `https://esm.sh/${name}@${version}?target=es2022`,
-  ]),
+  [...Object.keys(dependencies), ...SUBPATHS].map((specifier) => [specifier, esmShUrl(specifier)]),
 );
 
 // anywidget loads each _esm file as a self-contained module (relative imports don't resolve

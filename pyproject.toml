@@ -29,16 +29,21 @@ Issues = "https://github.com/bedrock-engineer/specklestuff/issues"
 bim = [
     "specklepy>=2026.9.1",
 ]
+# What bimpolars[geobim] adds: bimpolars itself is not on PyPI, so the BimDataFrame brings it
+geo = [
+    "pyproj>=3.7",
+]
 
 [dependency-groups]
 dev = [
     "bimpolars",
-    # the BimDataFrame intake's extra, for its tests and the example
-    "specklewidgets[bim]",
+    # the BimDataFrame intake's and the surroundings' extras, for their tests and the examples
+    "specklewidgets[bim,geo]",
     "marimo>=0.17",
     "mypy>=1.14",
     "pytest>=8.3",
     "ruff>=0.9",
+    "types-shapely>=2",
 ]
 # The pytest suite without the example's data and notebook toolchain
 test = [

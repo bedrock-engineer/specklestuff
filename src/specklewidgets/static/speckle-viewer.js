@@ -118,108 +118,120 @@ function drawnElements(nodes, drawn, placedBy) {
   }
   return elements;
 }
-const speckleViewer = {
-  async render({ model, el }) {
-    const container = document.createElement("div");
-    function size() {
-      const height = model.get("height");
-      container.style.cssText = height ? `position: relative; width: 100%; height: ${height}px;` : `position: relative; width: 100%; aspect-ratio: ${model.get("aspect_ratio")};`;
-    }
-    size();
-    el.appendChild(container);
-    const message = document.createElement("div");
-    message.style.cssText = "position: absolute; left: 8px; top: 6px; font: 12px sans-serif; color: #b00; pointer-events: none;";
-    container.appendChild(message);
-    const viewer = new Viewer(container, { ...DefaultViewerParams, verbose: false });
-    await viewer.init();
-    const camera = viewer.createExtension(CameraController);
-    const selection = viewer.createExtension(SelectionExtension);
-    let placedBy = /* @__PURE__ */ new Map();
-    viewer.on(ViewerEvent.ObjectClicked, () => {
-      setTimeout(() => {
-        const nodes = selection.getSelectedNodes();
-        const elements = nodes.map((node) => elementOf(node, placedBy));
-        model.set("selected", selectionData(elements));
-        model.save_changes();
-      });
+async function mountSpeckleViewer(model, el) {
+  const traits = model;
+  const container = document.createElement("div");
+  function size() {
+    const height = traits.get("height");
+    container.style.cssText = height ? `position: relative; width: 100%; height: ${height}px;` : `position: relative; width: 100%; aspect-ratio: ${traits.get("aspect_ratio")};`;
+  }
+  size();
+  el.appendChild(container);
+  const message = document.createElement("div");
+  message.style.cssText = "position: absolute; left: 8px; top: 6px; font: 12px sans-serif; color: #b00; pointer-events: none;";
+  container.appendChild(message);
+  const viewer = new Viewer(container, { ...DefaultViewerParams, verbose: false });
+  await viewer.init();
+  const camera = viewer.createExtension(CameraController);
+  const selection = viewer.createExtension(SelectionExtension);
+  let placedBy = /* @__PURE__ */ new Map();
+  viewer.on(ViewerEvent.ObjectClicked, () => {
+    setTimeout(() => {
+      const nodes = selection.getSelectedNodes();
+      const elements = nodes.map((node) => elementOf(node, placedBy));
+      traits.set("selected", selectionData(elements));
+      traits.save_changes();
     });
-    function report(objectCount, bbox) {
-      model.set("object_count", objectCount);
-      model.set("scene_bbox", bbox);
-      model.save_changes();
+  });
+  function report(objectCount, bbox) {
+    traits.set("object_count", objectCount);
+    traits.set("scene_bbox", bbox);
+    traits.save_changes();
+  }
+  let loads = Promise.resolve();
+  let latest = 0;
+  async function load(generation) {
+    if (generation !== latest) {
+      return;
     }
-    let loads = Promise.resolve();
-    let latest = 0;
-    async function load(generation) {
+    message.textContent = "";
+    if (traits.get("selected").length) {
+      traits.set("selected", []);
+      traits.save_changes();
+    }
+    await viewer.unloadAll();
+    placedBy = /* @__PURE__ */ new Map();
+    const buffer = traits.get("objects_gz");
+    if (!buffer || buffer.byteLength === 0) {
+      report(0, []);
+      return;
+    }
+    const models = await gunzipJson(buffer);
+    for (const objects of models) {
       if (generation !== latest) {
         return;
       }
-      message.textContent = "";
-      if (model.get("selected").length) {
-        model.set("selected", []);
-        model.save_changes();
+      for (const [member, instance] of singlePlacements(objects)) {
+        placedBy.set(member, instance);
       }
-      await viewer.unloadAll();
-      placedBy = /* @__PURE__ */ new Map();
-      const buffer = model.get("objects_gz");
-      if (!buffer || buffer.byteLength === 0) {
-        report(0, []);
-        return;
-      }
-      const models = await gunzipJson(buffer);
-      for (const objects of models) {
-        if (generation !== latest) {
-          return;
-        }
-        for (const [member, instance] of singlePlacements(objects)) {
-          placedBy.set(member, instance);
-        }
-        await viewer.loadObject(new MemoryLoader(viewer.getWorldTree(), objects), false);
-      }
-      camera.setCameraView(void 0, false);
-      const renderer = viewer.getRenderer();
-      const elements = drawnElements(
-        // tree-model's typings leave out a node's model and parent
-        viewer.getWorldTree().root.all(() => true),
-        new Set(renderer.batcher.getBatches().flatMap((batch) => batch.renderViews)),
-        placedBy
-      );
-      report(elements.size, bboxList(renderer.sceneBox));
+      await viewer.loadObject(new MemoryLoader(viewer.getWorldTree(), objects), false);
     }
-    function reload() {
-      const generation = ++latest;
-      loads = loads.then(() => load(generation)).catch((error) => {
-        console.error("SpeckleViewer: loading the objects failed", error);
-        message.textContent = `Loading failed: ${error}`;
-      });
-      return loads;
+    camera.setCameraView(void 0, false);
+    const renderer = viewer.getRenderer();
+    const elements = drawnElements(
+      // tree-model's typings leave out a node's model and parent
+      viewer.getWorldTree().root.all(() => true),
+      new Set(renderer.batcher.getBatches().flatMap((batch) => batch.renderViews)),
+      placedBy
+    );
+    report(elements.size, bboxList(renderer.sceneBox));
+  }
+  function reload() {
+    const generation = ++latest;
+    loads = loads.then(() => load(generation)).catch((error) => {
+      console.error("SpeckleViewer: loading the objects failed", error);
+      message.textContent = `Loading failed: ${error}`;
+    });
+    return loads;
+  }
+  traits.on("change:objects_gz", reload);
+  await reload();
+  let markers = [];
+  function placeMarkers() {
+    const scene = viewer.getRenderer().scene;
+    for (const marker of markers) {
+      scene.remove(marker);
+      disposeMarker(marker);
     }
-    model.on("change:objects_gz", reload);
-    await reload();
-    let markers = [];
-    function placeMarkers() {
-      const scene = viewer.getRenderer().scene;
-      for (const marker of markers) {
-        scene.remove(marker);
-        disposeMarker(marker);
-      }
-      markers = model.get("markers").map(markerObject);
-      for (const marker of markers) {
-        scene.add(marker);
-      }
-      viewer.requestRender();
+    markers = traits.get("markers").map(markerObject);
+    for (const marker of markers) {
+      scene.add(marker);
     }
-    model.on("change:markers", placeMarkers);
-    placeMarkers();
-    model.on("change:height", size);
-    model.on("change:aspect_ratio", size);
-    const resizing = new ResizeObserver(() => viewer.resize());
-    resizing.observe(container);
-    return () => {
+    viewer.requestRender();
+  }
+  traits.on("change:markers", placeMarkers);
+  placeMarkers();
+  traits.on("change:height", size);
+  traits.on("change:aspect_ratio", size);
+  const resizing = new ResizeObserver(() => viewer.resize());
+  resizing.observe(container);
+  return {
+    viewer,
+    container,
+    showMessage(text) {
+      message.textContent = text;
+    },
+    dispose() {
       latest++;
       resizing.disconnect();
       viewer.dispose();
-    };
+    }
+  };
+}
+const speckleViewer = {
+  async render({ model, el }) {
+    const { dispose } = await mountSpeckleViewer(model, el);
+    return dispose;
   }
 };
 export {

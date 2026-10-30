@@ -14,11 +14,12 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "e2e": "node --test --test-concurrency=1 --test-timeout=1200000 e2e/notebook.test.mjs e2e/bimdataframe.test.mjs",
+    "e2e": "node --test --test-concurrency=1 --test-timeout=1200000 e2e/notebook.test.mjs e2e/bimdataframe.test.mjs e2e/geo.test.mjs",
     "release": "release-it",
-    "build": "tsc && rm -rf src/specklewidgets/static && ENTRY=js/speckle-viewer.ts vite build"
+    "build": "tsc && rm -rf src/specklewidgets/static && ENTRY=js/speckle-viewer.ts vite build && ENTRY=js/geo-speckle-viewer.ts vite build"
   },
   "dependencies": {
+    "3d-tiles-renderer": "0.3.46",
     "@speckle/objectloader2": "2.31.14",
     "@speckle/viewer": "2.31.14",
     "three": "0.140.2"
