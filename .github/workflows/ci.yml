@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup-js
+      - run: just check-js
+      # tsc + the bundle, which is committed: it must be the build of the committed js/
+      - run: just check-bundle
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup-py
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bimpolars
+          # The date of the bucket's data the known numbers are for: bump it with them, since a
+          # cache key is never overwritten and fetch downloads only what is missing
+          key: bimpolars-data-2026-10-30
+      - run: just check-py
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [js, python]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup
+      - run: npx playwright install --with-deps chromium
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bimpolars
+          key: bimpolars-data-2026-10-30
+      - run: just e2e
+      # The canvas, or the page when the viewer never reported
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: e2e/.out/
+          if-no-files-found: ignore

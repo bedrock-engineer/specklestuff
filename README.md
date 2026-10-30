@@ -1,121 +1,98 @@
-# 🔷 speckle_widgets
+# specklewidgets
 
-> *View your Speckle models — right inside a Python (marimo!) notebook, no server required.*
+Speckle's web viewer in a notebook, fed with Speckle objects instead of a server.
 
-**speckle_widgets** provides two [anywidgets](https://anywidget.dev) for [marimo](https://marimo.io): one to authenticate with a Speckle server using OAuth, and one to render 3D models in an interactive viewer. Both work in cloud-based marimo notebooks running Python via WebAssembly — no local server, no browser extension, no fuss.
-
-
-## 🌟 Highlights
-
-- **Two widgets in one package** — authenticate with Speckle, then view your models
-- **Works in cloud marimo** ([marimo.app](https://marimo.app) / [molab](https://molab.marimo.io)) — no local HTTP server required
-- **Load by URL** — paste any Speckle project URL and the model loads straight in
-- **Load local objects** — visualise Python-side `specklepy` geometry without uploading to a server
-- **Reactive** — widgets respond to Python state changes like any other marimo UI element
-
-
-## ℹ️ Overview
-
-[Speckle](https://speckle.systems) is an open-source platform for sharing and versioning 3D/BIM models. `speckle_widgets` brings it into the notebook by wrapping the official [`@speckle/viewer`](https://www.npmjs.com/package/@speckle/viewer) JavaScript library and the Speckle OAuth flow as anywidgets, so they compose naturally with marimo's reactive UI model.
-
-The auth widget opens a popup to your Speckle server, completes the OAuth handshake via a `postMessage` callback, and stores the resulting token as a reactive trait — ready to be wired directly into the viewer. The viewer widget accepts either a Speckle URL or a list of `specklepy` objects serialised in-memory, so you can visualise geometry generated in Python without ever uploading it to a server.
-
-### ✍️ Author
-
-Built by [Joost Gevaert](https://github.com/jooostgevaert). Contributions, issues, and feedback are very welcome — see below.
-
-
-## 🚀 Usage
-
-### Authentication
+`SpeckleViewer` is an [anywidget](https://anywidget.dev) that runs
+[`@speckle/viewer`](https://www.npmjs.com/package/@speckle/viewer), the viewer behind the Speckle
+web app, in marimo or Jupyter. It takes the v3 objects of one or more Speckle models from Python,
+as [bimpolars](https://github.com/bedrock-engineer/bimpolars) reads them from a local copy, and
+draws them side by side: no Speckle server, no token, no upload.
 
 ```python
 import marimo as mo
-import speckle_widgets
+from bimpolars import data
+from bimpolars.speckle import version_objects
+from specklewidgets import Marker, SpeckleViewer
 
-auth = mo.ui.anywidget(
-    speckle_widgets.SpeckleAuthWidget(
-        server_url="https://app.speckle.systems",
-        app_id="YOUR_APP_ID",
-        app_secret="YOUR_APP_SECRET",
-        # Must match a redirect URI registered in your Speckle App settings.
-        # See the Installation section for how to set this up.
-        callback_url="https://yourusername.github.io/speckle_widgets/callback.html",
-    )
-)
-auth
-```
-
-After clicking **Sign in**, a popup opens for you to log in. Once complete, `auth.widget.token` and `auth.widget.user_name` are populated automatically.
-
-### Viewer — URL mode
-
-```python
+objects = data.fetch(data.RVT_SPECKLE_V3_OBJECTS)
+models = [
+    version_objects(objects, version.version_id)
+    for version in (data.RVT_SPECKLE_ARCH, data.RVT_SPECKLE_STR, data.RVT_SPECKLE_MEP)
+]
 viewer = mo.ui.anywidget(
-    speckle_widgets.SpeckleViewerWidget(
-        token=auth.widget.token,
-        speckle_url="https://app.speckle.systems/projects/abc123/models/xyz456",
-        height=600,
-    )
+    SpeckleViewer(models, height=600, markers=[Marker("project base point", (0, 0, 0))])
 )
 viewer
+
+# in another cell, once the models are in
+viewer.widget.object_count  # 13546: the elements a click can select
+viewer.widget.scene_bbox  # [xmin, ymin, zmin, xmax, ymax, zmax] in metres
+viewer.widget.selected  # the clicked elements' own data
 ```
 
-### Viewer — local objects mode
+`examples/rvt_advanced_sample.py` is that notebook: `uv run marimo edit
+examples/rvt_advanced_sample.py`.
 
-Geometry you create in Python can be sent straight to the viewer without uploading it to a server first:
+## Install
 
-```python
-from specklepy.objects.geometry import Mesh
-
-mesh = Mesh(
-    vertices=[0.0, 0.0, 0.0,  1.0, 0.0, 0.0,  0.5, 1.0, 0.0],
-    faces=[3, 0, 1, 2],
-)
-
-viewer = mo.ui.anywidget(speckle_widgets.SpeckleViewerWidget(height=500))
-viewer.widget.load_objects([mesh])
-viewer
+```sh
+uv add "specklewidgets @ git+https://github.com/bedrock-engineer/specklestuff"
 ```
 
-`load_objects` uses `specklepy`'s `MemoryTransport` to serialise the objects in-process — no network call is made.
+The package depends on anywidget and traitlets only. The built widget is in the wheel, with
+`@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the wheel), so the notebook needs
+no network access; their licenses are in `specklewidgets/static/speckle-viewer.LICENSES.txt`.
 
+## API
 
-## ⬇️ Installation
+- `SpeckleViewer(models=None, *, markers=None, **traits)`: the widget. `models` is one model
+  or a sequence of models; a model is a Speckle version's v3 objects, its root first, parsed (as
+  `bimpolars.speckle.version_objects` gives them) or as JSON array text. Clicking an element
+  selects it, shift-click adds to the selection and a click on nothing clears it; a click on an
+  instance selects its InstanceProxy, whose applicationId is the element's, with
+  `-instance-<n>` appended when the element has several placements or geometry of its own
+  (`read_speckle` strips it to key its rows), and whose `definitionId` has the model's root id
+  in front (`<root id>/def-12`, see `models_gz`). Its traits:
+  - `objects_gz`: the packed models (`models_gz`); set it to load other models.
+  - `height` (pixels; `None`, the default, follows the width by `aspect_ratio`, 16:9).
+  - `markers`: axes with a label, `[{"name", "position": [x, y, z], "size"}]` in metres.
+  - `selected`: the selected elements' data, without their geometry and children.
+  - `object_count` and `scene_bbox`, set by the viewer after each load: the number of
+    elements it draws (what a click can select: an element with several meshes counts once,
+    an instance once per placement) and the scene's bounding box,
+    `[xmin, ymin, zmin, xmax, ymax, zmax]`, in metres (the viewer scales every model to
+    metres), `[]` when empty.
+- `Marker(name, position, size=5.0)`: a marker, `position` in metres.
+- `models_gz(*models, compresslevel=6)`: packs models for `objects_gz` as gzipped JSON. It
+  adjusts three things in raw models that trip the viewer (2.31.14): it prefixes the ids of
+  each model's instance definitions and their members with the model's root id, so that the
+  `def-1` of one model does not select the instances of another; it keeps a member id on the
+  mesh only when the mesh's DataObject carries it too (as specklepy's projection of a bundle
+  writes `def-geo-<n>`), where the viewer would stop looking for members halfway; and it lists
+  each object once in a collection, where the viewer would leave a member's extra copies at
+  the definition's origin and draw none of its instances. Ids are otherwise left alone.
 
-```bash
-pip install speckle_widgets
+## Development
+
+The repo has two toolchains, npm for `js/` and uv for the Python, and
+[just](https://just.systems) runs both (`scoop install just`, `brew install just`, or
+`uv tool install rust-just`; on Windows it needs Git Bash's `sh`):
+
+```sh
+just                # lists the recipes
+just setup          # npm ci + uv sync --locked
+just build          # tsc + vite: js/ → src/specklewidgets/static/ (committed)
+just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
+just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
+just e2e            # the example notebook in headless Chromium (see below)
 ```
 
-Requires Python 3.10+ and a Speckle account. You'll also need to register an **App** in your Speckle server settings to get an `app_id` and `app_secret`.
+`just e2e` serves the example notebook with marimo, opens it in headless Chromium (WebGL by
+SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
+errors, that the canvas is drawn on and that the viewer reports the element count and bounding
+box that `tests/test_rvt_advanced_sample.py` reaches without the viewer, and that the page
+asks no CDN for anything. The models
+come through `bimpolars.data.fetch`: set `BIMPOLARS_DATA_DIR` to a local copy of the bimpolars
+bucket, or let it download (16 MB).
 
-### OAuth callback setup
-
-Because cloud marimo runs in the browser, the OAuth redirect must go to a static page that forwards the auth code back to the widget via `postMessage`. The `docs/callback.html` file in this repository is that page. Host it on GitHub Pages:
-
-1. Fork this repository
-2. Go to **Settings → Pages → Source: `main` branch, `/docs` folder**
-3. Your callback URL will be `https://yourusername.github.io/speckle_widgets/callback.html`
-4. Register that URL as a redirect URI in your Speckle App settings
-
-### Development setup
-
-```bash
-# Node (via nvm) + Python deps
-nvm install --lts
-npm install
-uv sync --dev
-
-# HMR dev mode — changes in src/ reflect live in marimo without restart
-ANYWIDGET_HMR=1 npm run dev                            # terminal 1
-ANYWIDGET_HMR=1 uv run marimo edit examples/demo.py    # terminal 2
-
-# Production build
-npm run build          # → speckle_widgets/static/auth.js + viewer.js
-uv build               # → dist/speckle_widgets-0.1.0-py3-none-any.whl
-```
-
-
-## 💭 Feedback & contributing
-
-Found a bug, have a feature request, or just want to say it worked? Please [open an issue](https://github.com/jooostgevaert/speckle_widgets/issues) or start a [discussion](https://github.com/jooostgevaert/speckle_widgets/discussions). Pull requests are welcome too.
+`sandbox/oauth/` holds the earlier OAuth widget, which is not packaged.

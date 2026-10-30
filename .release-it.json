@@ -1,0 +1,22 @@
+{
+  "npm": false,
+  "git": {
+    "commitMessage": "Release v${version}",
+    "tagName": "v${version}",
+    "requireBranch": "main",
+    "requireCleanWorkingDir": true
+  },
+  "github": {
+    "release": false
+  },
+  "hooks": {
+    "before:init": ["npm run typecheck", "npm run test", "uv run pytest"],
+    "after:bump": "uv lock"
+  },
+  "plugins": {
+    "@release-it/bumper": {
+      "in": { "file": "pyproject.toml", "path": "project.version" },
+      "out": { "file": "pyproject.toml", "path": "project.version" }
+    }
+  }
+}
