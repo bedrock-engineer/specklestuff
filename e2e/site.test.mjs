@@ -263,7 +263,7 @@ test(
         "none",
         "the widget takes the touches on its viewer, whatever the page around it",
       );
-      assert.ok(await page.locator(".bar .how").isHidden(), "the strip has the header's hint");
+      assert.ok(await page.locator(".how-click").isHidden(), "the strip has the instructions");
       const rail = await page.locator(".rail").boundingBox();
       const viewer = await page.locator("#viewer-pane").boundingBox();
       const map = await page.locator("#map-pane").boundingBox();
