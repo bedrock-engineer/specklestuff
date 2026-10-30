@@ -37,9 +37,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bimpolars
-          # The date of the bucket's data the known numbers are for: bump it with them, since a
-          # cache key is never overwritten and fetch downloads only what is missing
-          key: bimpolars-data-2026-10-30
+          # The date of the bucket's data the known numbers are for, and what the tests fetch
+          # beyond the Speckle objects: bump it with either, since a cache key is never
+          # overwritten and fetch downloads only what is missing
+          key: bimpolars-data-2026-10-30-arch-ifc
       - run: just check-py
 
   e2e:
@@ -63,7 +64,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bimpolars
-          key: bimpolars-data-2026-10-30
+          key: bimpolars-data-2026-10-30-arch-ifc
       - run: just e2e
       # The canvas, or the page when the viewer never reported
       - if: ${{ !cancelled() }}

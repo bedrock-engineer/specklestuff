@@ -5,12 +5,11 @@ The element counts and the bounding box here are the ones the headless test
 read_speckle reach them independently of the viewer.
 """
 
-from collections.abc import Iterator, Mapping
 from typing import Any
 
 import pytest
 
-from speckle_objects import unpack
+from speckle_objects import drawn_elements, unpack
 from specklewidgets import models_gz
 
 # bimpolars (and polars with it) is a dev dependency, not in the minimal test group
@@ -36,44 +35,6 @@ def models() -> list[list[dict[str, Any]]]:
 @pytest.fixture(scope="module")
 def packed(models) -> dict[str, list[dict[str, Any]]]:
     return dict(zip(VERSIONS, unpack(models_gz(*models)), strict=True))
-
-
-def children(obj: Mapping[str, Any], by_id: Mapping[str, Any]) -> Iterator[dict[str, Any]]:
-    for field in ("elements", "displayValue"):
-        for child in obj.get(field) or []:
-            yield by_id[child["referencedId"]] if "referencedId" in child else child
-
-
-def drawn_elements(objects: list[dict[str, Any]]) -> int:
-    """What a click can select: every object with a displayValue that draws a mesh, and every
-    instance whose definition draws one. A definition's members draw only where an instance
-    places them."""
-    by_id = {obj["id"]: obj for obj in objects}
-    by_application_id = {obj["applicationId"]: obj for obj in objects if "applicationId" in obj}
-    definitions = {d["applicationId"]: d for d in objects[0].get("instanceDefinitionProxies", [])}
-    members = {member for d in definitions.values() for member in d["objects"]}
-
-    def placed(obj: dict[str, Any]) -> Iterator[dict[str, Any]]:
-        if obj["speckle_type"].endswith("InstanceProxy"):
-            yield from (by_application_id[m] for m in definitions[obj["definitionId"]]["objects"])
-        else:
-            yield from (c for c in children(obj, by_id) if c.get("applicationId") not in members)
-
-    def draws(obj: dict[str, Any]) -> bool:
-        if obj["speckle_type"].endswith("Mesh"):
-            return bool(obj.get("vertices"))
-        return any(draws(child) for child in placed(obj))
-
-    count = 0
-    stack = [objects[0]]
-    while stack:
-        obj = stack.pop()
-        is_instance = obj["speckle_type"].endswith("InstanceProxy")
-        if (is_instance or obj.get("displayValue")) and draws(obj):
-            count += 1
-        if not is_instance:
-            stack.extend(placed(obj))
-    return count
 
 
 @pytest.mark.parametrize("name", VERSIONS)
