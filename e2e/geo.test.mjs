@@ -54,30 +54,35 @@ function overlaps([ax0, ay0, ax1, ay1], [bx0, by0, bx1, by1]) {
   return ax0 < bx1 && bx0 < ax1 && ay0 < by1 && by0 < ay1;
 }
 
-/** The report once the model, the map and the tiles are in */
-async function report(page) {
+/**
+ * The report once the model, the map and the tiles are in, and at least `hiddenFeatures` of
+ * the tiles' features left out
+ */
+async function report(page, hiddenFeatures, timeout) {
   const handle = await page.waitForFunction(
-    () => {
+    (hiddenFeatures) => {
       const element = document.querySelector("#geo-report");
       if (!element || element.dataset.objectCount === "0") {
         return null;
       }
-      const surroundings = JSON.parse(element.dataset.surroundings);
-      return surroundings.ground_map.length && surroundings.tiles > 0
-        ? Object.fromEntries(
-            Object.entries(element.dataset).map(([key, value]) => [key, JSON.parse(value)]),
-          )
-        : null;
+      const seen = Object.fromEntries(
+        Object.entries(element.dataset).map(([key, value]) => [key, JSON.parse(value)]),
+      );
+      const { ground_map, tiles, hidden_features } = seen.surroundings;
+      return ground_map.length && tiles > 0 && hidden_features >= hiddenFeatures ? seen : null;
     },
-    undefined,
-    { timeout: 8 * MINUTE, polling: 1000 },
+    hiddenFeatures,
+    { timeout, polling: 1000 },
   );
   return handle.jsonValue();
 }
 
 /** The checks both runs share; returns the report for theirs */
 async function checkSixty5InItsSurroundings(page, errors, name) {
-  const seen = await report(page);
+  let seen = await report(page, 0, 8 * MINUTE);
+  // The tiles come in one by one, and the one with the model's building may come last
+  seen = await report(page, 1, 3 * MINUTE).catch(() => seen);
+  console.log(`Sixty5 ${name}:`, JSON.stringify({ ...seen, frameBbox: undefined }));
   assert.equal(seen.drawnRows, DRAWN_ROWS, "rows with a mesh, less the openings");
   assert.equal(seen.objectCount, DRAWN_ROWS, "elements drawn");
   assertBbox(seen.frameBbox, FRAME_BBOX, "frame bbox");
@@ -129,6 +134,7 @@ describe("offline: generated map tiles, 3D BAG and BAG", () => {
     const seen = await checkSixty5InItsSurroundings(notebook.page, notebook.errors, "offline");
     // The stand-in BAG has one pand under the model; its tile three boxes, one on the pand
     assert.deepEqual(seen.panden, ["0772100000e2e000"]);
+    assert.equal(seen.leaves, 1);
     assert.deepEqual(seen.surroundings, { ...seen.surroundings, tiles: 1, hidden_features: 1 });
     assert.ok(served.includes(TILE_URL));
     assert.ok(served.filter((url) => url.includes("openstreetmap")).length > 4);
@@ -152,8 +158,7 @@ describe(
     });
 
     test("Sixty5 stands on its BAG pand, in the 3D BAG", { timeout: 15 * MINUTE }, async () => {
-      const seen = await checkSixty5InItsSurroundings(notebook.page, notebook.errors, "live");
-      console.log("Sixty5 live:", JSON.stringify({ ...seen, frameBbox: undefined }));
+      await checkSixty5InItsSurroundings(notebook.page, notebook.errors, "live");
     });
   },
 );

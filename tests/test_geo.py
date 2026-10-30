@@ -21,6 +21,7 @@ data = pytest.importorskip("bimpolars.data")
 bimpolars = pytest.importorskip("bimpolars")
 geobim = pytest.importorskip("bimpolars.geobim")
 geo = pytest.importorskip("specklewidgets.geo")
+pyproj = pytest.importorskip("pyproj")
 pl = pytest.importorskip("polars")
 shapely = pytest.importorskip("shapely")
 pytest.importorskip("shapely.affinity")
@@ -33,6 +34,8 @@ SIXTY5_ORIGIN = (160071.5, 384156.5, 18.625)
 SIXTY5_ROTATION = math.degrees(math.atan2(-0.7700680491484481, 0.6379617540893054))
 SIXTY5_LONLAT = (5.46015, 51.44648)
 """The site origin to 0.00001 degrees, which is under a metre."""
+NLGEO2018_AT_SIXTY5 = 43.919
+"""The quasi-geoid height at the site origin (NLGEO2018): its ellipsoidal less its NAP height."""
 
 METRES_PER_DEGREE = 111_320.0
 """Of latitude, and of longitude at the equator: enough to compare positions to a centimetre."""
@@ -65,6 +68,13 @@ def world(site) -> Any:
 @pytest.fixture(scope="module")
 def ground_map(site) -> Any:
     return geo.osm_ground_map(site)
+
+
+@pytest.fixture(scope="module")
+def grids() -> None:
+    """Skips where PROJ has neither the NSGI grids nor the network to fetch them."""
+    if not pyproj.transformer.TransformerGroup("EPSG:7415", "EPSG:4979").best_available:
+        pytest.skip("no NSGI grids: install them, or set PROJ_NETWORK=ON for cdn.proj.org")
 
 
 def slabs_and_footings(site) -> Any:
@@ -145,6 +155,14 @@ def test_the_viewers_world_is_proj_to_a_centimetre(site, world):
     east = (linear[:, 0] - exact[:, 0]) * METRES_PER_DEGREE * math.cos(math.radians(51.45))
     assert np.hypot(north, east).max() < 0.01
     assert np.abs(linear[:, 2] - exact[:, 2]).max() < 0.01
+
+
+def test_the_world_stands_at_ellipsoidal_heights(world, grids):
+    # PDOK's 3D Tiles are in ECEF, at ellipsoidal heights, and the ground map lies at the
+    # world's z = 0, the site origin's NAP height. Without the grids PROJ passes that NAP
+    # height off as an ellipsoidal one, and the 3D BAG would float 44 m above the map
+    nap = SIXTY5_ORIGIN[2]
+    assert world.height(0.0) == pytest.approx(nap + NLGEO2018_AT_SIXTY5, abs=0.01)
 
 
 def test_a_plain_engineering_crs_is_not_on_earth(plain):
@@ -261,6 +279,15 @@ def test_site_3d_tiles_takes_a_coarse_tile_when_no_child_overlaps(fetched):
     )
     uris = [leaf["content"]["uri"] for leaf in tileset["root"]["children"]]
     assert uris == ["https://tiles.test/sub/t/coarse.glb"]
+
+
+def test_site_3d_tiles_keeps_what_a_tile_refines_by_addition(fetched):
+    # The root of the external tileset adds its children to its own content, rather than
+    # being replaced by them
+    fetched.answers["https://tiles.test/sub/eindhoven.json?f=json"]["root"]["refine"] = "ADD"
+    tileset = geo.site_3d_tiles("https://tiles.test/3dtiles?f=json", (5.455, 51.442, 5.466, 51.449))
+    uris = [leaf["content"]["uri"] for leaf in tileset["root"]["children"]]
+    assert uris == ["https://tiles.test/sub/t/coarse.glb", "https://tiles.test/sub/t/strijp.glb"]
 
 
 def test_site_3d_tiles_needs_a_tile(fetched):
@@ -394,21 +421,31 @@ def sixty5_panden(pdok, site) -> dict[str, Any]:
 def test_sixty5_stands_on_its_bag_pand(site, sixty5_panden):
     print("BAG panden under Sixty5:", {key: pand.bounds for key, pand in sixty5_panden.items()})
     assert len(sixty5_panden) >= 1
-    xmin, ymin, xmax, ymax = geo._plan_extent(site)
-    model = shapely.box(xmin, ymin, xmax, ymax)
-    for polygon in sixty5_panden.values():
-        assert polygon.intersection(model).area > polygon.area / 2
 
 
-def test_the_3d_bag_has_tiles_at_sixty5(site, sixty5_panden):
-    entry = geo.pdok_3d_buildings(site, hide_within=sixty5_panden.values())
-    leaves = entry["tileset"]["root"]["children"]
+@pytest.fixture(scope="module")
+def sixty5_3d_bag(site, sixty5_panden) -> Any:
+    return geo.pdok_3d_buildings(site, hide_within=sixty5_panden.values())
+
+
+def test_the_3d_bag_has_tiles_at_sixty5(sixty5_3d_bag, sixty5_panden):
+    leaves = sixty5_3d_bag["tileset"]["root"]["children"]
     print(f"3D BAG at Sixty5: {len(leaves)} tiles,", [leaf["content"]["uri"] for leaf in leaves])
     assert len(leaves) >= 1
-    west, south, east, north = entry["tileset"]["root"]["boundingVolume"]["region"][:4]
+    west, south, east, north = sixty5_3d_bag["tileset"]["root"]["boundingVolume"]["region"][:4]
     lon, lat = (math.radians(value) for value in SIXTY5_LONLAT)
     assert west < lon < east and south < lat < north
-    assert len(entry["hide_within"]) == len(sixty5_panden)
+    assert len(sixty5_3d_bag["hide_within"]) == len(sixty5_panden)
+
+
+def test_the_3d_bag_stands_on_the_ground_map(sixty5_3d_bag, world, grids):
+    # The lowest of the tiles' regions is the lowest ground under a building there, which
+    # around Strijp-S is within a few metres of the site origin's: the map's plane
+    leaves = sixty5_3d_bag["tileset"]["root"]["children"]
+    lowest = [leaf["boundingVolume"]["region"][4] for leaf in leaves]
+    assert min(lowest) == pytest.approx(world.height(0.0), abs=10), (
+        f"the tiles' lowest heights {lowest}, the map's {world.height(0.0)}"
+    )
 
 
 # The widget

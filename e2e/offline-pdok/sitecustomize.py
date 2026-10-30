@@ -1,14 +1,16 @@
 """Answers PDOK's APIs for the offline headless test of examples/sixty5_geo.py.
 
-`npm run e2e` puts this folder on PYTHONPATH when api.pdok.nl is out of reach (the cloud
-containers), so that Python imports it at startup. It answers urllib's requests to
+The offline run of e2e/geo.test.mjs puts this folder on the notebook's PYTHONPATH, so that
+Python imports it at startup. It answers urllib's requests to
 api.pdok.nl, which specklewidgets.geo makes, with a 3D BAG and a BAG of its own around the
-Sixty5 site; e2e/geo.test.mjs serves the 3D BAG's one tile (TILE_URL) and the map tiles.
+Sixty5 site; e2e/surroundings.mjs serves the 3D BAG's one tile (TILE_URL) and the map tiles.
 Other requests go out as they would.
 
 Everything sits in the east-north-up frame of the Sixty5 site origin: the pand is a square
 around the model's middle, under its slabs, and the tile holds the boxes of BOXES (in
-e2e/geo.test.mjs), of which only the first stands on the pand.
+e2e/surroundings.mjs), of which only the first stands on the pand. As in PDOK's 3D Tiles,
+heights are ellipsoidal: the boxes stand on the ground map only where PROJ has the NSGI
+grids, which the example has it fetch.
 """
 
 import io
@@ -18,8 +20,10 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-ORIGIN = (5.460153, 51.446476, 18.625)
-"""The Sixty5 site origin: longitude, latitude, ellipsoidal height (NAP passed off as it)."""
+ORIGIN = (5.4601517, 51.4464756, 62.544)
+"""The Sixty5 site origin: longitude, latitude and ellipsoidal height, which is its NAP height
+(18.625 m) and NLGEO2018's quasi-geoid height there (43.919 m); RDNAPTRANS2018 with the
+grids."""
 
 MIDDLE = (31.9, 6.1)
 """The model's middle, east and north of its origin, in metres: the site grid's (15.7,

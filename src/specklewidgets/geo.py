@@ -33,15 +33,16 @@ import numpy as np
 import polars as pl
 import shapely
 import shapely.geometry
-from bimpolars.crs import linear_unit
 from shapely.geometry.base import BaseGeometry
 
 try:
     import pyproj
+    from bimpolars.crs import linear_unit
     from bimpolars.geobim import linearized_site_to_ecef
 except ImportError as error:
     raise ImportError(
-        "specklewidgets.geo needs pyproj: install the extra specklewidgets[geo]"
+        "specklewidgets.geo needs bimpolars and pyproj: install bimpolars and the extra "
+        "specklewidgets[geo]"
     ) from error
 
 from specklewidgets.geo_speckle_viewer import GroundMap, Tileset
@@ -138,6 +139,12 @@ def pdok_3d_buildings(
     The 3D BAG's finest tiles that overlap ``bounds`` (see :func:`site_3d_tiles`), placed in
     the viewer's world, with the buildings mostly within ``hide_within`` left out.
 
+    The tiles are at ellipsoidal heights, so they stand on the ground map only where PROJ
+    puts the model's heights on the ellipsoid: in the Netherlands with the NSGI grids, which
+    PROJ fetches with its network on (``pyproj.network.set_network_enabled(True)``). Without
+    them it passes NAP heights off as ellipsoidal ones (bimpolars warns), and the buildings
+    float some 44 m above the map.
+
     Args:
         bdf: The model, in a georeferenced CRS, with its ``bbox`` column.
         bounds: ``[west, south, east, north]`` in degrees, such as the ``bounds`` of
@@ -190,6 +197,11 @@ def site_3d_tiles(tileset_url: str, bounds: Sequence[float]) -> dict[str, Any]:
     three.js, marks every child of a tile without content as used, in view or not, so on
     PDOK's whole tree it would fetch the external tilesets of half the country.
 
+    Where a tile refines by replacement (``REPLACE``, PDOK's), its children's content takes
+    the place of its own, so only the finest content is kept; where it refines by addition
+    (``ADD``, inherited down the tree as the refine of 3D Tiles is), its content is kept
+    along with its children's.
+
     Args:
         tileset_url: The URL of a 3D Tiles tileset whose tiles have region bounding volumes.
         bounds: ``[west, south, east, north]`` in degrees.
@@ -214,9 +226,10 @@ def site_3d_tiles(tileset_url: str, bounds: Sequence[float]) -> dict[str, Any]:
 
     leaves: list[dict[str, Any]] = []
 
-    def walk(tile: dict[str, Any], base_url: str, transform: Matrix) -> None:
+    def walk(tile: dict[str, Any], base_url: str, transform: Matrix, refine: str) -> None:
         if not overlaps(tile):
             return
+        refine = tile.get("refine", refine).upper()
         if "transform" in tile:
             transform = transform @ np.array(tile["transform"], dtype=float).reshape(
                 4, 4, order="F"
@@ -224,10 +237,11 @@ def site_3d_tiles(tileset_url: str, bounds: Sequence[float]) -> dict[str, Any]:
         uri = tile.get("content", {}).get("uri")
         if uri and uri.split("?")[0].endswith(".json"):
             external_url = urllib.parse.urljoin(base_url, uri)
-            walk(_fetch_json(external_url)["root"], external_url, transform)
+            walk(_fetch_json(external_url)["root"], external_url, transform, refine)
             return
         children = [child for child in tile.get("children", []) if overlaps(child)]
-        if uri and (not children or tile["geometricError"] == 0):
+        finest = not children or tile["geometricError"] == 0
+        if uri and (finest or refine == "ADD"):
             leaves.append(
                 {
                     "boundingVolume": tile["boundingVolume"],
@@ -236,11 +250,11 @@ def site_3d_tiles(tileset_url: str, bounds: Sequence[float]) -> dict[str, Any]:
                     "content": {"uri": urllib.parse.urljoin(base_url, uri)},
                 }
             )
-            return
-        for child in children:
-            walk(child, base_url, transform)
+        if not finest:
+            for child in children:
+                walk(child, base_url, transform, refine)
 
-    walk(_fetch_json(tileset_url)["root"], tileset_url, np.eye(4))
+    walk(_fetch_json(tileset_url)["root"], tileset_url, np.eye(4), "REPLACE")
     if not leaves:
         raise ValueError(f"no tile of {tileset_url} overlaps {list(bounds)}")
     regions = [

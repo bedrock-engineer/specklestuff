@@ -97,11 +97,18 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   last change.
 - PDOK's 3D BAG is a tree of external tilesets; `site_3d_tiles` walks it along the tiles that
   overlap the area (3d-tiles-renderer 0.3.46 would fetch every child of a tile without content,
-  half the country's tilesets) and gives a one-level tileset of the finest tiles there.
+  half the country's tilesets) and gives a one-level tileset of the finest tiles there (and
+  of the content of the tiles that refine by `ADD` on the way).
 - `bag_panden_under` keeps a pand with more than half of its area under the footprint;
   `pdok_3d_buildings` grows the `hide_within` polygons by `hide_margin` (0.5 m) so that a
-  building's vertices on its pand's outline count as within. Without the NSGI grids the
-  model sits within about a metre of PDOK's data (bimpolars warns).
+  building's vertices on its pand's outline count as within.
+- PDOK's 3D Tiles are at ellipsoidal heights, and the world's z = 0 is the site origin's NAP
+  height, so the 3D BAG stands on the ground map only with the NSGI grids. Without them PROJ
+  passes NAP off as ellipsoidal heights (bimpolars warns): the model sits within about a metre
+  of PDOK's data in plan, and the 3D BAG floats 44 m above it. The example turns PROJ's
+  network on (`pyproj.network.set_network_enabled(True)`, as bimpolars' Sixty5 notebook
+  does), so PROJ fetches the grids; CI's pytest sets `PROJ_NETWORK=ON`, so that the tests of
+  the `grids` fixture run, and the offline stand-in's tile stands at the true height.
 
 ## Viewer facts (2.31.14)
 
@@ -140,16 +147,21 @@ Sixty5's structural model (`tests/test_geo.py`, `e2e/geo.test.mjs`): read_ifc ta
 1363 rows drawn (with a mesh, less 1284 openings), bbox x -2.24..33.585, y -0.001..55.69, z
 -30.4..56.64 m in the site grid; the plan extent of all rows' `bbox` turned by -50.36 degrees
 gives `osm_ground_map` bounds 5.457095..5.464129 E, 51.444345..51.448716 N with the 150 m
-margin, a 2048 x 2042 image. The site origin is at 5.460153 E, 51.446476 N, ellipsoidal
-height 18.625 m (NAP passed off as it without the grids).
+margin, a 2048 x 2042 image (without the grids). The site origin is at 5.4601517 E,
+51.4464756 N, ellipsoidal height 62.544 m (NAP 18.625 m and NLGEO2018's 43.919 m) with the
+NSGI grids, and at 5.460153 E, 51.446476 N, 18.625 m without them.
 
-esm.sh, api.pdok.nl and tile.openstreetmap.org are blocked from the cloud containers: `npm run
-e2e` serves esm.sh from a mirror bundled out of `node_modules` (`e2e/esm-mirror.mjs`), and the
-geo test's offline run answers PDOK and OSM itself (`e2e/offline-pdok/` goes on the kernel's
-PYTHONPATH: its `sitecustomize.py` patches `urllib.request.urlopen` for api.pdok.nl), so they
-run there as well; the live run and `tests/test_geo.py`'s `pdok` tests skip there and run on
-GitHub Actions. CI sets `E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's
-browser loads, and the test fails on three's "Multiple instances of Three.js" warning (which
-also guards 3d-tiles-renderer's `&deps=three`). The e2e files run one after the other
-(`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium, through
-`e2e/marimo.mjs`, which holds the `E2E_ESM_SH` switch.
+esm.sh, api.pdok.nl, tile.openstreetmap.org and cdn.proj.org are blocked from the cloud
+containers. With the PROJ network on and no grids, bimpolars fails to transform there ("did not
+transform"), so before the geo e2e put `nl_nsgi_nlgeo2018.tif` and `nl_nsgi_rdtrans2018.tif`
+from https://raw.githubusercontent.com/OSGeo/PROJ-data/master/nl_nsgi/ (GitHub answers) into
+`pyproj.datadir.get_user_data_dir()` (`~/.local/share/proj`). `npm run e2e` serves esm.sh from a
+mirror bundled out of `node_modules` (`e2e/esm-mirror.mjs`), and the geo test's offline run
+answers PDOK and OSM itself (`e2e/offline-pdok/` goes on the kernel's PYTHONPATH: its
+`sitecustomize.py` patches `urllib.request.urlopen` for api.pdok.nl), so they run there as well;
+the live run and `tests/test_geo.py`'s `pdok` tests skip there and run on GitHub Actions. CI
+sets `E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
+fails on three's "Multiple instances of Three.js" warning (which also guards 3d-tiles-renderer's
+`&deps=three`). The e2e files run one after the other (`--test-concurrency=1`): each starts
+marimo and a SwiftShader Chromium, through `e2e/marimo.mjs`, which holds the `E2E_ESM_SH`
+switch.

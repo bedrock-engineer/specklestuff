@@ -12,6 +12,7 @@ def _():
 
     import marimo as mo
     import polars as pl
+    import pyproj
     import shapely
     from bimpolars import data, read_ifc, simple_features
     from bimpolars.crs import linear_unit
@@ -34,6 +35,7 @@ def _():
         osm_ground_map,
         pdok_3d_buildings,
         pl,
+        pyproj,
         read_ifc,
         set_crs,
         shapely,
@@ -61,7 +63,12 @@ def _(mo):
 
 
 @app.cell
-def _(data, derived_engineering_crs, linear_unit, math, read_ifc, set_crs):
+def _(data, derived_engineering_crs, linear_unit, math, pyproj, read_ifc, set_crs):
+    # PDOK's 3D Tiles stand at ellipsoidal heights, which take the NSGI grids: without them
+    # PROJ passes NAP heights off as ellipsoidal ones (bimpolars warns) and the 3D BAG floats
+    # 44 m above the map. With the network on, PROJ fetches them from cdn.proj.org
+    pyproj.network.set_network_enabled(True)
+
     # The bimpolars test data: fetch downloads it from the bimpolars bucket on first use, or
     # finds it in BIMPOLARS_DATA_DIR. The IFC is not georeferenced; IFC-GeoReferencer's
     # export of the architectural model gives the numbers
@@ -142,7 +149,7 @@ def _(pl):
 
 
 @app.cell
-def _(drawn, frame_bbox, html, json, mo, panden, shapely, site, viewer):
+def _(drawn, frame_bbox, html, json, mo, panden, shapely, site, tilesets, viewer):
     # Reruns whenever the viewer reports: after each load, as the tiles come in, and on each
     # selection
     count, bbox = viewer.widget.object_count, viewer.widget.scene_bbox
@@ -161,6 +168,7 @@ def _(drawn, frame_bbox, html, json, mo, panden, shapely, site, viewer):
         "data-panden": json.dumps(list(panden)),
         "data-panden-bbox": json.dumps(panden_bbox),
         "data-surroundings": json.dumps(surroundings),
+        "data-leaves": len(tilesets[0]["tileset"]["root"]["children"]),
     }
     _text = " ".join(f"{name}='{html.escape(str(value))}'" for name, value in attributes.items())
     mo.Html(

@@ -60,12 +60,15 @@ buildings the model takes the place of. `specklewidgets.geo` builds them for a B
 that bimpolars has placed on earth:
 
 ```python
+import pyproj
 from bimpolars import simple_features
 from bimpolars.crs import linear_unit
 from bimpolars.geobim import derived_engineering_crs, set_crs
 from specklewidgets import GeoSpeckleViewer
 from specklewidgets.geo import bag_panden_under, osm_ground_map, pdok_3d_buildings
 
+# PDOK's 3D Tiles are at ellipsoidal heights, which take the NSGI grids: PROJ fetches them
+pyproj.network.set_network_enabled(True)
 bdf = read_ifc(data.fetch("sixty5_O-S1-CON-structural-engineering.ifc"))
 crs = derived_engineering_crs(
     "EPSG:7415", 160_071.5, 384_156.5, 18.625, -50.36, unit=linear_unit(bdf.crs), name="Sixty5"
@@ -154,8 +157,12 @@ the notebook's Python api.pdok.nl.
   the Engineering CRS of `bimpolars.geobim.derived_engineering_crs`. The viewer's world goes to
   ECEF and back through one 4x4, `bimpolars.geobim.linearized_site_to_ecef`, for the map, the
   tiles and the panden alike, so they line up with each other exactly and with PROJ's own
-  transformation to a centimetre around a site (and to its own accuracy: without the NSGI
-  grids, a Helmert transformation that is good to about a metre):
+  transformation to a centimetre around a site, and to its own accuracy. In the Netherlands
+  that takes the NSGI grids, which PROJ fetches from cdn.proj.org with its network on
+  (`pyproj.network.set_network_enabled(True)` or `PROJ_NETWORK=ON`). Without them PROJ falls
+  back to a Helmert transformation, good to about a metre in plan, that passes NAP heights
+  off as ellipsoidal ones (bimpolars warns): PDOK's 3D BAG, at ellipsoidal heights, then
+  floats some 44 m above the map and the model.
   - `osm_ground_map(bdf, *, margin=150.0, width=2048, z=0.0, opacity=0.85)`: the `ground_map`
     over the model's plan extent (its `bbox` column) and `margin` metres around it; `z` is the
     map's height in metres in the model's CRS (0: the site origin's).
