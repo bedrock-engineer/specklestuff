@@ -6,7 +6,8 @@
 //   npm run build && npm run e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it) and spends 45 s in read_ifc. esm.sh is served from node_modules.
+// bimpolars download it) and spends 45 s in read_ifc. esm.sh is served from node_modules,
+// unless E2E_ESM_SH=network (see marimo.mjs).
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

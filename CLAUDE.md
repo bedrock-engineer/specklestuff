@@ -87,5 +87,8 @@ takes 45 s): `read_speckle` with the bundle draws 5568 rows (every row with a me
 on either (specklepy hashes 17,600 objects, 36 to 45 MB of JSON).
 
 esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. The two e2e files run one
-after the other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium.
+of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. CI sets
+`E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
+fails on three's "Multiple instances of Three.js" warning. The two e2e files run one after the
+other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium, through
+`e2e/marimo.mjs`, which holds the `E2E_ESM_SH` switch.

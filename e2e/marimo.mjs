@@ -1,5 +1,7 @@
 // What the headless tests share: a marimo server for an example notebook, headless Chromium
-// on it with esm.sh served from node_modules (see esm-mirror.mjs), and a look at a canvas.
+// on it with esm.sh served from node_modules (see esm-mirror.mjs) unless E2E_ESM_SH=network
+// (then the browser loads the real esm.sh, as a user's does; CI sets it), and a look at a
+// canvas.
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import path from "node:path";
@@ -7,6 +9,8 @@ import { chromium } from "playwright";
 import { buildMirror, routeEsmSh } from "./esm-mirror.mjs";
 
 const ROOT = path.join(import.meta.dirname, "..");
+// Whether the browser loads the real esm.sh instead of the mirror
+const ESM_SH_NETWORK = process.env.E2E_ESM_SH === "network";
 
 export const MINUTE = 60_000;
 
@@ -38,10 +42,13 @@ async function waitForServer(url, timeout) {
  *
  * @param {string} notebook the notebook's path from the repository root
  * @returns {Promise<{page: import("playwright").Page, errors: string[], close: () => Promise<void>}>}
- *   the page, the console errors and page errors it logs, and what stops both
+ *   the page, the console errors, page errors and a second three.js it logs, and what stops
+ *   both
  */
 export async function openNotebook(notebook) {
-  await buildMirror();
+  if (!ESM_SH_NETWORK) {
+    await buildMirror();
+  }
   const port = await freePort();
   const marimo = spawn(
     "uv",
@@ -68,11 +75,18 @@ export async function openNotebook(notebook) {
     await waitForServer(url, 2 * MINUTE);
     browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
     const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-    await routeEsmSh(context);
+    if (!ESM_SH_NETWORK) {
+      await routeEsmSh(context);
+    }
     const page = await context.newPage();
     const errors = [];
     page.on("console", (message) => {
-      if (message.type() === "error") {
+      // A second three.js (esm.sh resolving the viewer's three to another module than ours) only
+      // warns, and most of the scene still draws
+      if (
+        message.type() === "error" ||
+        message.text().includes("Multiple instances of Three.js being imported")
+      ) {
         errors.push(message.text());
       }
     });

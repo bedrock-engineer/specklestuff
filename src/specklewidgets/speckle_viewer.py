@@ -61,7 +61,10 @@ class SpeckleViewer(anywidget.AnyWidget):
 
     Clicking an element selects it; shift-click adds to the selection and a click on nothing
     clears it. A click on an instance selects its InstanceProxy, whose applicationId is the
-    element's.
+    element's, with ``-instance-<n>`` appended when the element has several placements or
+    geometry of its own (:func:`bimpolars.speckle.read_speckle` strips it to key its rows). Its
+    ``definitionId`` has the model's root id in front (``<root id>/def-12``), as
+    :func:`~specklewidgets.models_gz` namespaces it.
 
     After each load the front end reports ``object_count`` and ``scene_bbox``; read them from a
     cell that references the marimo element, which reruns when they change.
@@ -108,7 +111,8 @@ class SpeckleViewer(anywidget.AnyWidget):
             **kwargs: Traits, passed through unchanged, such as ``height=600``.
 
         Raises:
-            ValueError: If ``color`` is given without a BimDataFrame to colour.
+            ValueError: If ``color`` is given without a BimDataFrame to colour, or a model is
+                not one (see :func:`~specklewidgets.models_gz`).
         """
         if models is not None or color is not None:
             as_models = [] if models is None else _as_models(models)
@@ -121,9 +125,10 @@ class SpeckleViewer(anywidget.AnyWidget):
 def _as_models(models: ViewerModel | Sequence[ViewerModel]) -> list[ViewerModel]:
     """One model, or each of a sequence of models.
 
-    A model is text, a BimDataFrame, or a sequence that starts with a mapping (an object).
+    A model is text, a BimDataFrame, or a sequence that starts with a mapping (an object). A
+    single object counts as a model too, which ``models_gz`` then refuses as not a list.
     """
-    if isinstance(models, str) or _is_bim_data_frame(models):
+    if isinstance(models, str | Mapping) or _is_bim_data_frame(models):
         return [models]
     if len(models) > 0 and isinstance(models[0], Mapping):
         return [models]  # type: ignore[list-item]

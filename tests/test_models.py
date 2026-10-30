@@ -93,6 +93,12 @@ def test_a_model_needs_a_root_with_an_id(model):
         models_gz(model)
 
 
+@pytest.mark.parametrize("model", [{"id": "root-a"}, '{"id": "root-a"}'], ids=["object", "text"])
+def test_one_object_is_not_a_model(model):
+    with pytest.raises(ValueError, match="model 0 has no root"):
+        models_gz(model)
+
+
 def test_a_model_cannot_load_twice(model):
     with pytest.raises(ValueError, match="model 1 repeats the root root-a"):
         models_gz(model, model)
