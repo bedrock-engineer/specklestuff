@@ -1,7 +1,7 @@
 """Speckle's web viewer in a notebook, fed with raw Speckle models: :class:`SpeckleViewer`.
 
 The widget runs Speckle's own viewer (``@speckle/viewer``, the npm package behind the Speckle
-web app, loaded from esm.sh with three.js) without a Speckle server. The v3 objects of one or
+web app, bundled with three.js into the widget) without a Speckle server. The v3 objects of one or
 more models go to the browser as gzipped JSON (:func:`~specklewidgets.models_gz`), and a
 ``SpeckleLoader`` subclass hands each model to ``ObjectLoader2Factory.createFromObjects``,
 the in-memory object loader.

@@ -5,8 +5,8 @@
 //   npm run build && npm run e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs), unless
-// E2E_ESM_SH=network: then the browser loads the real esm.sh, as a user's does (CI sets it).
+// bimpolars download it). The widget bundles the viewer and three.js, so the page loads nothing
+// from a CDN; a request to esm.sh fails the test.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -14,11 +14,8 @@ import { createServer } from "node:net";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { chromium } from "playwright";
-import { buildMirror, routeEsmSh } from "./esm-mirror.mjs";
 
 const ROOT = path.join(import.meta.dirname, "..");
-// Whether the browser loads the real esm.sh instead of the mirror
-const ESM_SH_NETWORK = process.env.E2E_ESM_SH === "network";
 // The canvas as the test saw it, for a look when it fails (gitignored)
 const OUT = path.join(import.meta.dirname, ".out");
 const NOTEBOOK = "examples/rvt_advanced_sample.py";
@@ -95,9 +92,6 @@ async function waitFor(locator, timeout) {
 }
 
 before(async () => {
-  if (!ESM_SH_NETWORK) {
-    await buildMirror();
-  }
   const port = await freePort();
   marimo = spawn(
     "uv",
@@ -120,14 +114,16 @@ before(async () => {
   // SwiftShader: WebGL without a GPU
   browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-  if (!ESM_SH_NETWORK) {
-    await routeEsmSh(context);
-  }
+  // The bundle is self-contained: the CDN it used to import from must not be asked
+  await context.route("https://esm.sh/**", async (route) => {
+    errors.push(`request to esm.sh: ${route.request().url()}`);
+    await route.abort();
+  });
   page = await context.newPage();
   page.on("console", (message) => {
     log.push(`${message.type()}: ${message.text()}`);
-    // A second three.js (esm.sh resolving the viewer's three to another module than ours) only
-    // warns, and most of the scene still draws
+    // A second three.js (a dependency of the viewer bundling its own copy) only warns, and
+    // most of the scene still draws
     if (
       message.type() === "error" ||
       message.text().includes("Multiple instances of Three.js being imported")

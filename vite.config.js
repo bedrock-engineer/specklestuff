@@ -1,50 +1,67 @@
-import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import anywidget from "@anywidget/vite";
+import license from "rollup-plugin-license";
 
-// @speckle/viewer and three.js stay out of the bundle: the widget imports them from esm.sh, at
-// the exact versions package.json pins. ?target=es2022 on every URL makes esm.sh serve the
-// viewer's own three.js import and ours from one module, so the markers we add are the
-// viewer's three.js objects. ?deps pins a package's dependencies that the widget imports as
-// well to the widget's versions, through the whole build: esm.sh otherwise resolves each peer
-// range on its own, and the viewer's graph holds three builds of three.js (0.140.2, and 0.172.0
-// and 0.186.1 for the peer ranges of troika-three-text and three-mesh-bvh, ">=0.125.0" and
-// ">= 0.123.0"). e2e/esm-check.mjs checks that there is one.
-const readJson = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url)));
-const { dependencies } = readJson("package.json");
-function esmSh(name, version) {
-  const { dependencies: own = {}, peerDependencies: peers = {} } = readJson(
-    `node_modules/${name}/package.json`,
+// One entry per widget. anywidget loads each _esm file as a self-contained module (relative
+// imports don't resolve from a blob URL), so every entry gets its own vite build: a single
+// multi-entry build would split shared code into chunks the entries import relatively.
+// build.mjs loops over the entries.
+export const ENTRIES = ["js/speckle-viewer.ts"];
+export const OUT_DIR = "src/specklewidgets/static";
+
+// Packages that ship no license file get a pointer instead of the text. The Apache-2.0 text,
+// for the @speckle packages, is the package's own LICENSE.
+function licenseReport(dependencies) {
+  const header =
+    "Third-party software bundled into this widget, with the license each package ships.\n" +
+    "The Apache License 2.0 is in this package's LICENSE file.\n\n";
+  return (
+    header +
+    dependencies
+      .map((dependency) =>
+        dependency.licenseText
+          ? dependency.text()
+          : `${dependency.text()}\nLicense Text: none in the npm package; ${dependency.license}, ` +
+            `see ${dependency.repository?.url ?? dependency.homepage}`,
+      )
+      .join("\n\n---\n\n")
   );
-  const deps = Object.keys(dependencies)
-    .filter((dependency) => dependency in own || dependency in peers)
-    .map((dependency) => `${dependency}@${dependencies[dependency]}`);
-  return `https://esm.sh/${name}@${version}?target=es2022${deps.length ? `&deps=${deps.join(",")}` : ""}`;
 }
-export const ESM_SH = Object.fromEntries(
-  Object.entries(dependencies).map(([name, version]) => [name, esmSh(name, version)]),
-);
 
-// anywidget loads each _esm file as a self-contained module (relative imports don't resolve
-// from a blob URL), so every widget entry gets its own vite invocation: a single multi-entry
-// build would split shared lib code into chunks the entries import relatively. npm run build
-// loops over the entries via ENTRY.
+/**
+ * The build of one widget entry. @speckle/viewer, @speckle/objectloader2 and three.js are
+ * bundled in, so the widget loads from the wheel alone, and npm's single copy of three.js is
+ * the one the viewer, its three-mesh-bvh and troika dependencies, and our markers all use.
+ * Each bundle's third-party licenses go next to it as <name>.LICENSES.txt.
+ */
+export function widgetConfig(entry, { watch = false } = {}) {
+  const name = entry.replace(/^.*\//, "").replace(/\.ts$/, "");
+  return {
+    build: {
+      outDir: OUT_DIR,
+      emptyOutDir: false,
+      // Unminified: stack traces in the browser console stay readable, and our own code
+      // stays readable in diffs. Minifying would save 0.5 MB of 2.7, 50 kB gzipped in the wheel.
+      minify: false,
+      lib: { entry: [entry], formats: ["es"], fileName: () => `${name}.js` },
+      watch: watch ? {} : null,
+    },
+    // Library mode leaves process.env.NODE_ENV to the consumer; the viewer's dependencies read
+    // it, and anywidget runs the bundle as it is
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
+    plugins: [
+      anywidget(),
+      license({
+        thirdParty: {
+          output: { file: `${OUT_DIR}/${name}.LICENSES.txt`, template: licenseReport },
+        },
+      }),
+    ],
+  };
+}
+
 export default defineConfig({
-  build: {
-    outDir: "src/specklewidgets/static",
-    emptyOutDir: false,
-    // the bundles are committed and read in diffs, keep them readable
-    minify: false,
-    lib: {
-      entry: [process.env.ENTRY ?? "js/speckle-viewer.ts"],
-      formats: ["es"],
-    },
-    rollupOptions: {
-      external: Object.keys(ESM_SH),
-      output: { paths: ESM_SH },
-    },
-  },
-  plugins: [anywidget()],
+  ...widgetConfig(process.env.ENTRY ?? ENTRIES[0]),
   // e2e/ holds node:test files that run against a browser, through npm run e2e
   test: { include: ["js/**/*.test.ts"] },
 });
