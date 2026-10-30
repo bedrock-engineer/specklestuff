@@ -26,8 +26,10 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   self-contained module, so entries must not share chunks.
 - `@speckle/viewer`, `@speckle/objectloader2` and `three` are externals on esm.sh at the exact
   versions in package.json's `dependencies`, every URL with `?target=es2022` (vite.config.js
-  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. Bump the three
-  together: three must be the version the viewer's own range resolves to on esm.sh.
+  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. The viewer's
+  URL also pins three and objectloader2 with `&deps=`: without it esm.sh resolves
+  troika-three-text's peer range `three@>=0.125.0` on its own and answers HTTP 500. Bump the
+  three together: three must be the version the viewer's own range resolves to on esm.sh.
 - The Python core depends on anywidget and traitlets only. bimpolars is a dev dependency (the
   example and the data tests); a BimDataFrame intake (#2) decides whether it becomes a core one.
 - Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
