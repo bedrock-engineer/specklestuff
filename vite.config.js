@@ -5,27 +5,34 @@ import anywidget from "@anywidget/vite";
 // @speckle/viewer, three.js and 3d-tiles-renderer stay out of the bundles: the widgets import
 // them from esm.sh, at the exact versions package.json pins. ?target=es2022 on every URL makes
 // esm.sh serve the viewer's own three.js import and ours from one module, so the markers we
-// add are the viewer's three.js objects. A package that has three as a peer dependency
-// (3d-tiles-renderer) would get esm.sh's latest three.js unless &deps pins the viewer's.
-const { dependencies } = JSON.parse(readFileSync(new URL("package.json", import.meta.url)));
-const THREE_PEERS = new Set(["3d-tiles-renderer"]);
+// add are the viewer's three.js objects. ?deps pins a package's dependencies that the widget
+// imports as well to the widget's versions, through the whole build: esm.sh otherwise resolves
+// each peer range on its own, and the viewer's graph holds three builds of three.js (0.140.2,
+// and 0.172.0 and 0.186.1 for the peer ranges of troika-three-text and three-mesh-bvh,
+// ">=0.125.0" and ">= 0.123.0"), and 3d-tiles-renderer, whose three is a peer, gets esm.sh's
+// latest. e2e/esm-check.mjs checks that there is one.
+const readJson = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url)));
+const { dependencies } = readJson("package.json");
 // Modules of the dependencies that the widgets import by path
 const SUBPATHS = [
   "three/examples/jsm/loaders/GLTFLoader.js",
   "three/examples/jsm/libs/meshopt_decoder.module.js",
 ];
-
-function esmShUrl(specifier) {
+function esmSh(specifier) {
   const name = Object.keys(dependencies).find(
     (dependency) => specifier === dependency || specifier.startsWith(`${dependency}/`),
   );
   const path = specifier.slice(name.length);
-  const deps = THREE_PEERS.has(name) ? `&deps=three@${dependencies.three}` : "";
-  return `https://esm.sh/${name}@${dependencies[name]}${path}?target=es2022${deps}`;
+  const { dependencies: own = {}, peerDependencies: peers = {} } = readJson(
+    `node_modules/${name}/package.json`,
+  );
+  const deps = Object.keys(dependencies)
+    .filter((dependency) => dependency in own || dependency in peers)
+    .map((dependency) => `${dependency}@${dependencies[dependency]}`);
+  return `https://esm.sh/${name}@${dependencies[name]}${path}?target=es2022${deps.length ? `&deps=${deps.join(",")}` : ""}`;
 }
-
 export const ESM_SH = Object.fromEntries(
-  [...Object.keys(dependencies), ...SUBPATHS].map((specifier) => [specifier, esmShUrl(specifier)]),
+  [...Object.keys(dependencies), ...SUBPATHS].map((specifier) => [specifier, esmSh(specifier)]),
 );
 
 // anywidget loads each _esm file as a self-contained module (relative imports don't resolve

@@ -2,7 +2,9 @@
 // on it with esm.sh served from node_modules (see esm-mirror.mjs) unless E2E_ESM_SH=network
 // (then the browser loads the real esm.sh, as a user's does; CI sets it), and a look at a
 // canvas.
+import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { mkdir } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import { chromium } from "playwright";
@@ -11,6 +13,8 @@ import { buildMirror, routeEsmSh } from "./esm-mirror.mjs";
 const ROOT = path.join(import.meta.dirname, "..");
 // Whether the browser loads the real esm.sh instead of the mirror
 const ESM_SH_NETWORK = process.env.E2E_ESM_SH === "network";
+// What a test saw, for a look when it fails (gitignored; CI uploads it)
+export const OUT = path.join(import.meta.dirname, ".out");
 
 export const MINUTE = 60_000;
 
@@ -45,9 +49,14 @@ async function waitForServer(url, timeout) {
  * @param {Record<string, string>} [options.env] more environment for marimo and its kernel
  * @param {(context: import("playwright").BrowserContext) => Promise<void>} [options.route]
  *   routes the browser's requests before it opens the notebook, as the esm.sh mirror does
- * @returns {Promise<{page: import("playwright").Page, errors: string[], close: () => Promise<void>}>}
- *   the page, the console errors, page errors and a second three.js it logs, and what stops
- *   both
+ * @returns {Promise<{
+ *   page: import("playwright").Page,
+ *   errors: string[],
+ *   waitFor: (locator: import("playwright").Locator, timeout: number) => Promise<void>,
+ *   close: () => Promise<void>,
+ * }>} the page; the console errors, page errors and a second three.js it logs; a wait for a
+ *   locator that on timeout fails with what the page logged (and saves a screenshot of the
+ *   page in OUT); and what stops marimo and the browser
  */
 export async function openNotebook(notebook, { env = {}, route } = {}) {
   if (!ESM_SH_NETWORK) {
@@ -85,7 +94,11 @@ export async function openNotebook(notebook, { env = {}, route } = {}) {
     await route?.(context);
     const page = await context.newPage();
     const errors = [];
+    // Everything the page logs and every request that fails, for the message of a test that
+    // times out before it gets to the errors
+    const log = [];
     page.on("console", (message) => {
+      log.push(`${message.type()}: ${message.text()}`);
       // A second three.js (esm.sh resolving the viewer's three to another module than ours) only
       // warns, and most of the scene still draws
       if (
@@ -95,9 +108,30 @@ export async function openNotebook(notebook, { env = {}, route } = {}) {
         errors.push(message.text());
       }
     });
-    page.on("pageerror", (error) => errors.push(`${error.name}: ${error.message}`));
+    page.on("pageerror", (error) => {
+      errors.push(`${error.name}: ${error.message}`);
+      log.push(`pageerror: ${error.name}: ${error.message}`);
+    });
+    page.on("requestfailed", (request) =>
+      log.push(`requestfailed: ${request.url()} (${request.failure()?.errorText})`),
+    );
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        log.push(`HTTP ${response.status()}: ${response.url()}`);
+      }
+    });
+    async function waitFor(locator, timeout) {
+      try {
+        await locator.waitFor({ timeout });
+      } catch (error) {
+        await mkdir(OUT, { recursive: true });
+        const screenshot = path.join(OUT, `${path.basename(notebook, ".py")}.png`);
+        await page.screenshot({ path: screenshot, fullPage: true }).catch(() => {});
+        assert.fail(`${error.message}\n\nThe page logged:\n${log.slice(-40).join("\n")}`);
+      }
+    }
     await page.goto(url);
-    return { page, errors, close };
+    return { page, errors, waitFor, close };
   } catch (error) {
     await close();
     throw error;

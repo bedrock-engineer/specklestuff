@@ -45,24 +45,35 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   on esm.sh at the exact versions in package.json's `dependencies`, plus the three.js example
   modules in vite.config.js `SUBPATHS` (GLTFLoader, the meshopt decoder); every URL has
   `?target=es2022` (vite.config.js `ESM_SH`), so that esm.sh serves the viewer's three.js and
-  ours as one module, and `3d-tiles-renderer`, whose three is a peer dependency, also
-  `&deps=three@<our three>`, without which esm.sh gives it its latest three.js. Bump the
-  viewer and three together: three must be the version the viewer's own range resolves to on
-  esm.sh. 3d-tiles-renderer 0.3.46 is the last for three.js 0.140; its npm dependencies
-  (react, postprocessing, @takram) are for its r3f and plugin entries, which we do not use.
+  ours as one module. A URL also pins, with `&deps=`, the externals among the package's own
+  and peer dependencies: without it esm.sh resolves the peer ranges on their own, and the
+  viewer's graph holds three.js 0.140.2, 0.172.0 and 0.186.1, and 3d-tiles-renderer (three is
+  its peer) gets the latest. `node e2e/esm-check.mjs` crawls the graph of every `ESM_SH` URL
+  and fails on a module that does not answer 200 (with esm.sh's error) or on two builds of one
+  external; CI runs it before the e2e. Bump the viewer and three together: three must be the
+  version the viewer's own range resolves to on esm.sh. 3d-tiles-renderer 0.3.46 is the last
+  for three.js 0.140; its npm dependencies (react, postprocessing, @takram) are for its r3f
+  and plugin entries, which we do not use.
 - The Python core depends on anywidget and traitlets only and imports nothing else.
   `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
   bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
   (it is not on PyPI). `specklewidgets.geo` needs the extra `[geo]`: pyproj, what
-  `bimpolars[geobim]` adds, listed as such until bimpolars is on PyPI. `SpeckleViewer` recognises a BimDataFrame by the class in
-  `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then.
+  `bimpolars[geobim]` adds, listed as such until bimpolars is on PyPI. `SpeckleViewer`
+  recognises a BimDataFrame by the class in `sys.modules["bimpolars.frame"]` and imports
+  `specklewidgets.bim` only then.
   `tests/test_bim.py` and the data tests skip without bimpolars or specklepy.
+  `test_the_core_imports_neither_bimpolars_nor_specklepy` (test_facade.py) and
+  `test_a_bimdataframe_without_specklepy_names_the_extra` (test_bim.py) run in a subprocess
+  with `sys.modules[...] = None` to keep it that way.
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
   one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
   each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s
-  `_flatten`, so that `read_speckle` reads the drawn rows back (a test pins that). Unstyled
-  faces get no RenderMaterial, so they read back unstyled. Colours for `color` are the
-  dataviz reference palette's light categorical slots and blue ramp (steps 250 to 700).
+  `_flatten`, so that `read_speckle` reads back the drawn rows' ids, classes, names, meshes
+  and property sets (a test pins that). The other columns are plain fields, so they come back
+  inside the `object` set, not as columns: `container` reads back null, and the spatial rows
+  it points at have no mesh and are not drawn. Unstyled faces get no RenderMaterial, so they
+  read back unstyled. Colours for `color` are the dataviz reference palette's light
+  categorical slots and blue ramp (steps 250 to 700).
 - Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
   Python >= 3.12. Trait names stay the JSON wire format; facades only translate arguments.
 - The viewer works in metres: `scene_bbox` and `markers` are in metres whatever the models'

@@ -1,4 +1,4 @@
-import { ObjectLayers, SpeckleLoader, Viewer, DefaultViewerParams, CameraController, SelectionExtension, ViewerEvent } from "https://esm.sh/@speckle/viewer@2.31.14?target=es2022";
+import { ObjectLayers, SpeckleLoader, Viewer, DefaultViewerParams, CameraController, SelectionExtension, ViewerEvent } from "https://esm.sh/@speckle/viewer@2.31.14?target=es2022&deps=@speckle/objectloader2@2.31.14,three@0.140.2";
 import * as THREE from "https://esm.sh/three@0.140.2?target=es2022";
 import { ObjectLoader2Factory } from "https://esm.sh/@speckle/objectloader2@2.31.14?target=es2022";
 async function gunzipJson(buffer) {

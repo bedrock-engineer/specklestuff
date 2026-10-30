@@ -189,8 +189,9 @@ the notebook's Python api.pdok.nl.
     a RenderMaterial of its meshes. With `color`, a numeric column colours the elements in ten
     blues from its minimum to its maximum, any other in eight colours by how many rows have the
     value, the rest and nulls grey; each material is named after what it shows
-    (`class: IfcWall`, `Volume: 1.2 to 2.4`). `bimpolars.read_speckle` reads the objects back
-    into the drawn rows, ids, classes, meshes and property sets included.
+    (`class: IfcWall`, `Volume: 1.2 to 2.4`). `bimpolars.read_speckle` reads back the drawn
+    rows' ids, classes, names, meshes and property sets; the other columns come back inside
+    its `object` set.
   - `bim_collection(bdf, *, color=None, name=None)`: the same as a specklepy `Collection`,
     one sub-collection per class, for specklepy to send.
 

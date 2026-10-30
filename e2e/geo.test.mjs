@@ -15,11 +15,9 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
-import { canvasContent, MINUTE, openNotebook } from "./marimo.mjs";
+import { canvasContent, MINUTE, OUT, openNotebook } from "./marimo.mjs";
 import { routeSurroundings, TILE_URL } from "./surroundings.mjs";
 
-// The canvases as the test saw them, for a look when it fails (gitignored)
-const OUT = path.join(import.meta.dirname, ".out");
 const NOTEBOOK = "examples/sixty5_geo.py";
 
 // What tests/test_geo.py and bimpolars reach without the viewer: the rows with a mesh less
@@ -78,8 +76,10 @@ async function report(page, hiddenFeatures, timeout) {
 }
 
 /** The checks both runs share; returns the report for theirs */
-async function checkSixty5InItsSurroundings(page, errors, name) {
-  let seen = await report(page, 0, 8 * MINUTE);
+async function checkSixty5InItsSurroundings({ page, errors, waitFor }, name) {
+  // Fails with what the page logged when the viewer never reports
+  await waitFor(page.locator("#geo-report:not([data-object-count='0'])"), 8 * MINUTE);
+  let seen = await report(page, 0, 5 * MINUTE);
   // The tiles come in one by one, and the one with the model's building may come last
   seen = await report(page, 1, 3 * MINUTE).catch(() => seen);
   console.log(`Sixty5 ${name}:`, JSON.stringify({ ...seen, frameBbox: undefined }));
@@ -131,7 +131,7 @@ describe("offline: generated map tiles, 3D BAG and BAG", () => {
   });
 
   test("Sixty5 stands on its own pand, among the boxes", { timeout: 15 * MINUTE }, async () => {
-    const seen = await checkSixty5InItsSurroundings(notebook.page, notebook.errors, "offline");
+    const seen = await checkSixty5InItsSurroundings(notebook, "offline");
     // The stand-in BAG has one pand under the model; its tile three boxes, one on the pand
     assert.deepEqual(seen.panden, ["0772100000e2e000"]);
     assert.equal(seen.leaves, 1);
@@ -158,7 +158,7 @@ describe(
     });
 
     test("Sixty5 stands on its BAG pand, in the 3D BAG", { timeout: 15 * MINUTE }, async () => {
-      await checkSixty5InItsSurroundings(notebook.page, notebook.errors, "live");
+      await checkSixty5InItsSurroundings(notebook, "live");
     });
   },
 );

@@ -28,7 +28,7 @@ import numpy as np
 import polars as pl
 from bimpolars.crs import linear_unit
 from bimpolars.gltf import EXCLUDED_CLASSES
-from bimpolars.mesh import UNSTYLED_RGBA
+from bimpolars.mesh import UNSTYLED_RGBA, mesh_arrays
 from bimpolars.speckle import OBJECT_SET, SPECKLE_UNITS
 
 try:
@@ -193,9 +193,6 @@ def bim_collection(
     Nulls are left out. A set or column named like a field every DataObject has (``units``,
     ``category``, ...) or with a name specklepy refuses for a field (with ``/`` or ``.``, or
     starting with ``@``) goes into ``properties`` instead.
-    - ``displayValue``: one ``Mesh`` per style of the row's mesh (applicationId
-      ``<id>/<style index>``), in the model's length unit when Speckle knows it, else in
-      metres.
 
     The DataObjects are grouped into one Collection per class (sorted by name) under a root
     Collection. Each style, a ``(name, rgba)`` of the meshes' ``styles``, becomes a
@@ -265,7 +262,7 @@ def bim_collection(
             vertices, faces = meshes.whole(index)
             display_value.append(Mesh(vertices=vertices, faces=faces, units=units or "m"))
             colour_name, rgb = colours[colour_index[index]]
-            targets.setdefault((colour_name, (*rgb, 1.0)), []).append(row_id)
+            targets.setdefault((colour_name, (*rgb, 1.0)), []).append(str(row_id))
         fields = row_fields[index]
         properties = fields.pop(PROPERTIES_FIELD, None)
         element = DataObject(
@@ -308,33 +305,31 @@ def bim_collection(
 
 
 class _RowMeshes:
-    """The meshes of a ``mesh`` column as flat numpy arrays, sliced per row."""
+    """The meshes of a ``mesh`` column, sliced per row from :func:`bimpolars.mesh.mesh_arrays`."""
 
     def __init__(self, mesh: pl.Series, scale: float) -> None:
-        vertices = mesh.struct.field("vertices")
-        faces = mesh.struct.field("faces")
-        self._vertices = vertices.explode().to_numpy() * scale
-        self._faces = faces.explode().to_numpy()
-        self._vertex_starts = np.r_[0, np.cumsum(vertices.list.len().to_numpy())]
-        self._face_starts = np.r_[0, np.cumsum(faces.list.len().to_numpy())]
+        self._arrays = mesh_arrays(mesh)
+        self._scale = scale
         self._styles: list[list[dict[str, Any]]] = mesh.struct.field("styles").to_list()
+
+    def _row(self, row: int) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any]]:
+        """A row's vertices ``(n, 3)``, scaled, and its faces ``(m, 3)``."""
+        vertices, faces = self._arrays.row(row)
+        return vertices * self._scale, faces
 
     def whole(self, row: int) -> tuple[list[float], list[int]]:
         """A row's vertices and its faces as Speckle lists them: ``3, a, b, c`` each."""
-        vertices = self._vertices[self._vertex_starts[row] : self._vertex_starts[row + 1]]
-        faces = self._faces[self._face_starts[row] : self._face_starts[row + 1]]
-        return vertices.tolist(), _speckle_faces(faces.reshape(-1, 3))
+        vertices, faces = self._row(row)
+        return vertices.ravel().tolist(), _speckle_faces(faces)
 
     def by_style(self, row: int) -> list[tuple[dict[str, Any], list[float], list[int]]]:
         """Per style of a row: the style, and the vertices and Speckle faces of its faces."""
-        vertices = self._vertices[self._vertex_starts[row] : self._vertex_starts[row + 1]]
-        faces = self._faces[self._face_starts[row] : self._face_starts[row + 1]].reshape(-1, 3)
+        points, faces = self._row(row)
         styles = self._styles[row]
         if len(styles) < 2:
             only: dict[str, Any] = styles[0] if styles else {"name": None, "rgba": UNSTYLED_RGBA}
-            return [(only, vertices.tolist(), _speckle_faces(faces))]
+            return [(only, points.ravel().tolist(), _speckle_faces(faces))]
         parts = []
-        points = vertices.reshape(-1, 3)
         start = 0
         for style in styles:
             block = faces[start : start + style["face_count"]]

@@ -1,4 +1,4 @@
-import { Extension, ObjectLayers, SpeckleLoader, Viewer, DefaultViewerParams, CameraController, SelectionExtension, ViewerEvent } from "https://esm.sh/@speckle/viewer@2.31.14?target=es2022";
+import { Extension, ObjectLayers, SpeckleLoader, Viewer, DefaultViewerParams, CameraController, SelectionExtension, ViewerEvent } from "https://esm.sh/@speckle/viewer@2.31.14?target=es2022&deps=@speckle/objectloader2@2.31.14,three@0.140.2";
 import { TilesRenderer } from "https://esm.sh/3d-tiles-renderer@0.3.46?target=es2022&deps=three@0.140.2";
 import { GLTFLoader } from "https://esm.sh/three@0.140.2/examples/jsm/loaders/GLTFLoader.js?target=es2022";
 import { MeshoptDecoder } from "https://esm.sh/three@0.140.2/examples/jsm/libs/meshopt_decoder.module.js?target=es2022";
