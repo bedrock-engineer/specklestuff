@@ -129,26 +129,27 @@ the notebook's Python api.pdok.nl.
   writes `def-geo-<n>`), where the viewer would stop looking for members halfway; and it lists
   each object once in a collection, where the viewer would leave a member's extra copies at
   the definition's origin and draw none of its instances. Ids are otherwise left alone.
-- `GeoSpeckleViewer(models=None, *, color=None, markers=None, ground_map=None, tilesets=None,
-  **traits)`: `SpeckleViewer` with the model's surroundings, in the viewer's world (the models'
-  coordinates in metres). The map and the tiles are not elements: `object_count` and
-  `scene_bbox` leave them out, and a click does not select them. Its traits, besides
-  `SpeckleViewer`'s:
-  - `ground_map` (a `GroundMap`, `{}` for none): OpenStreetMap's tiles over `bounds` (`[west,
-    south, east, north]` in degrees), drawn into a `width` x `height` image north up and laid
-    on a plane at height `z` with `opacity`; its corners go to the world through
-    `lnglat_to_world`, an affine `[a, b, c, d, e, f]` with `x = a lon + b lat + c` and `y = d
-    lon + e lat + f`.
-  - `tilesets` (a list of `Tileset`): 3D Tiles, each `{"tileset": tileset JSON with absolute
-    content URLs, "ecef_to_world": column-major 4x4 from ECEF to the world, "attribution":
-    credit line, "hide_within": polygons as rings of [x, y]}`. A feature of the tiles (an
-    `EXT_mesh_features` id: a building of the 3D BAG) with more than half of its vertices
-    inside one of the `hide_within` polygons is left out. Tiles in glTF need
-    `EXT_meshopt_compression` at most; the viewer runs 3d-tiles-renderer 0.3.46, the last for
-    its three.js.
-  - `surroundings`, set by the viewer: `{"ground_map": [xmin, ymin, xmax, ymax] of the map's
-    plane in metres ([] until it is drawn), "tiles": tile contents loaded, "hidden_features":
-    features of those tiles left out by hide_within}`.
+- `GeoSpeckleViewer(models=None, *, ground_map=None, tilesets=None, **kwargs)`: a
+  `SpeckleViewer` (`color` and `markers` included) with the model's surroundings, in the
+  viewer's world (the models' coordinates in metres). The map and the tiles are not elements:
+  `object_count` and `scene_bbox` leave them out, and a click does not select them. Its
+  traits, besides `SpeckleViewer`'s:
+  - `ground_map` (a `GroundMap`, `{}` for none): OpenStreetMap's tiles over `bounds`
+    (`[west, south, east, north]` in degrees), drawn into a `width` x `height` image north up
+    and laid on a plane at height `z` with `opacity`; its corners go to the world through
+    `lnglat_to_world`, an affine `[a, b, c, d, e, f]` with `x = a lon + b lat + c` and
+    `y = d lon + e lat + f`.
+  - `tilesets` (a list of `Tileset`): 3D Tiles, each a dict with `tileset` (the tileset JSON
+    with absolute content URLs), `ecef_to_world` (a column-major 4x4 from ECEF to the
+    world), `attribution` (a credit line) and `hide_within` (polygons as rings of `[x, y]`).
+    A feature of the tiles (an `EXT_mesh_features` id: a building of the 3D BAG) with more
+    than half of its vertices inside one of the `hide_within` polygons is left out. Tiles in
+    glTF need `EXT_meshopt_compression` at most; the viewer runs 3d-tiles-renderer 0.3.46,
+    the last for its three.js.
+  - `surroundings`, set by the viewer: a dict with `ground_map` (`[xmin, ymin, xmax, ymax]`
+    of the map's plane in metres, `[]` until it is drawn), `tiles` (the tile contents
+    loaded) and `hidden_features` (the features of those tiles that `hide_within` leaves
+    out).
 - `specklewidgets.geo` (the `[geo]` extra), for a BimDataFrame in a georeferenced CRS such as
   the Engineering CRS of `bimpolars.geobim.derived_engineering_crs`. The viewer's world goes to
   ECEF and back through one 4x4, `bimpolars.geobim.linearized_site_to_ecef`, for the map, the

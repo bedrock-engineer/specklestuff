@@ -50,4 +50,3 @@ A building in the BAG, the Dutch register of buildings, by its `identificatie`. 
 under a model are the buildings it takes the place of: `hide_within` leaves them out of the
 3D BAG.
 _Avoid_: building footprint (the model's own `footprint` column)
-
