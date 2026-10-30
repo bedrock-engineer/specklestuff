@@ -1,7 +1,7 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
-/* Side by side: the 3D view and the footprint map at full height under a one-line bar; stacked
-   below 900 px */
+/* Side by side: the 3D view and the footprint map at full height under a one-line bar, a
+   draggable separator between them (splitter.ts); stacked below 900 px */
 :root {
   --bg: #f4f5f7;
   --fg: #1b2230;
@@ -9,6 +9,7 @@
   --panel: #ffffff;
   --line: #d6dae2;
   --accent: #2f6fde;
+  --separator: #e3e6ec;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   color-scheme: light;
@@ -64,11 +65,17 @@ h1 {
   color: var(--muted);
 }
 
-nav {
-  display: flex;
-  gap: 16px;
-  font-family: var(--mono);
-  font-size: 13px;
+.how {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 2px 12px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.how .action {
+  color: var(--fg);
+  font-weight: 600;
 }
 
 a {
@@ -77,10 +84,56 @@ a {
 
 .panes {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: 1px;
+  /* splitter.ts sets the shares */
+  grid-template-columns:
+    minmax(0, var(--viewer-share, 3fr)) auto
+    minmax(0, var(--map-share, 2fr));
   min-height: 0;
   background: var(--line);
+}
+
+.splitter {
+  position: relative;
+  width: 10px;
+  border-inline: 1px solid var(--line);
+  background: var(--separator);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+/* The grip */
+.splitter::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 36px;
+  border-radius: 1px;
+  background: var(--muted);
+  transform: translate(-50%, -50%);
+}
+
+.splitter:hover,
+.resizing .splitter {
+  background: #cfdcf6;
+}
+
+.splitter:hover::after,
+.resizing .splitter::after {
+  background: var(--accent);
+}
+
+.splitter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* While dragging: no text selection, and the cursor stays over the panes */
+.resizing,
+.resizing * {
+  cursor: col-resize !important;
+  user-select: none;
 }
 
 .pane {
@@ -152,6 +205,12 @@ a {
   box-shadow: 0 1px 6px rgb(0 0 0 / 0.18);
 }
 
+.card:empty {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
 .card p {
   margin: 0;
 }
@@ -189,5 +248,10 @@ a {
   .panes {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 65vh 60vh;
+    gap: 1px;
+  }
+
+  .splitter {
+    display: none;
   }
 }

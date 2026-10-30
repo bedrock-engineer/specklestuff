@@ -1,5 +1,6 @@
 // Opens the demo page (site/) in headless Chromium: Sixty5 in a GeoSpeckleViewer beside a
-// MapLibre map, a click in the viewer showing the element's footprint on the map. The test
+// MapLibre map, a click in the viewer showing the element's footprint on the map, the
+// separator between them resizing both. The test
 // writes the page's data with site/sixty5.py and builds the page into OUT, then serves it as
 // GitHub Pages does: static files, the gzipped model as it is.
 //
@@ -135,6 +136,14 @@ test("the viewer draws Sixty5 among the 3D BAG", { timeout: 10 * MINUTE }, async
     "the ground map's tiles",
   );
   assert.ok(basemapTiles.length > 0, "the footprint map's tiles");
+  assert.ok(
+    basemapTiles.every((url) => url.includes("/brt/achtergrondkaart/")),
+    "the topographic map by default",
+  );
+  // site/.env's title, or the one VITE_SITE_TITLE gave the build
+  const title = await page.title();
+  assert.doesNotMatch(title, /%/);
+  assert.equal(await page.locator("h1").textContent(), title);
   assert.deepEqual(errors, []);
 });
 
@@ -171,5 +180,51 @@ test("a click shows the element's footprint on the map", { timeout: 10 * MINUTE 
   assert.equal(await card.locator(".class").textContent(), properties.class);
   assert.match(await card.locator(".storey").textContent(), new RegExp(`^${properties.storey}`));
   await page.screenshot({ path: path.join(OUT, "site.png"), timeout: 5 * MINUTE });
+  assert.deepEqual(errors, []);
+});
+
+/** Waits until the canvas in a pane is as wide as the pane: the pane's content follows it */
+async function canvasFills(page, pane, canvas) {
+  await page.waitForFunction(
+    ([pane, canvas]) =>
+      Math.abs(
+        document.querySelector(canvas).getBoundingClientRect().width -
+          document.querySelector(pane).getBoundingClientRect().width,
+      ) < 2,
+    [pane, canvas],
+    { timeout: MINUTE },
+  );
+}
+
+test("the separator resizes the viewer and the map", { timeout: 5 * MINUTE }, async () => {
+  const { page, errors } = opened;
+  const separator = page.locator("#splitter");
+  assert.equal(await separator.getAttribute("aria-valuenow"), "60");
+  const panes = await page.locator(".panes").boundingBox();
+  const handle = await separator.boundingBox();
+  const y = handle.y + handle.height / 2;
+  await page.mouse.move(handle.x + handle.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(panes.x + 0.4 * panes.width, y, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForFunction(
+    () => document.getElementById("splitter").getAttribute("aria-valuenow") === "40",
+    undefined,
+    { timeout: MINUTE },
+  );
+  const viewer = await page.locator("#viewer-pane").boundingBox();
+  const map = await page.locator("#map-pane").boundingBox();
+  assert.ok(Math.abs(viewer.width / (viewer.width + map.width) - 0.4) < 0.01, "40 % to the viewer");
+  await canvasFills(page, "#viewer-pane", "#viewer canvas");
+  await canvasFills(page, "#map-pane", "#map canvas.maplibregl-canvas");
+  // The keys move it too
+  await separator.focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await separator.getAttribute("aria-valuenow"), "42");
+  await page.keyboard.press("Home");
+  assert.equal(await separator.getAttribute("aria-valuenow"), "20");
+  await separator.dblclick();
+  assert.equal(await separator.getAttribute("aria-valuenow"), "60");
+  await canvasFills(page, "#viewer-pane", "#viewer canvas");
   assert.deepEqual(errors, []);
 });
