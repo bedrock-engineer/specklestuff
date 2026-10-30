@@ -1,5 +1,5 @@
 {
-  "name": "specklewidgets",
+  "name": "specklestuff",
   "private": true,
   "repository": {
     "type": "git",
@@ -21,18 +21,9 @@
     "site:dev": "vite --config site/vite.config.js",
     "site:preview": "vite preview --config site/vite.config.js"
   },
-  "dependencies": {
-    "3d-tiles-renderer": "0.3.46",
-    "@speckle/objectloader2": "2.31.14",
-    "@speckle/viewer": "2.31.14",
-    "three": "0.140.2"
-  },
   "devDependencies": {
-    "@anywidget/types": "^0.4.0",
     "@anywidget/vite": "^0.3.0",
     "@release-it/bumper": "^8.0.0",
-    "@types/three": "0.140.0",
-    "maplibre-gl": "~6.15.0",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.90.0",
     "playwright": "1.63.0",
@@ -41,5 +32,6 @@
     "typescript": "^7.0.2",
     "vite": "^7.3.7",
     "vitest": "^4.1.12"
-  }
+  },
+  "packageManager": "pnpm@10.28.0"
 }

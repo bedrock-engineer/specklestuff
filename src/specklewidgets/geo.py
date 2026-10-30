@@ -45,7 +45,7 @@ except ImportError as error:
         "specklewidgets[geo]"
     ) from error
 
-from specklewidgets.geo_speckle_viewer import GroundMap, Tileset
+from specklewidgets.geospeckle_viewer import GroundMap, Tileset
 
 if TYPE_CHECKING:
     from bimpolars import BimDataFrame

@@ -113,9 +113,28 @@ and the same page under bimpolars' title at [bedrock-engineer.github.io/bimpolar
 GitHub Pages runs no Python, so `site/sixty5.py` computes what the notebook computes at build
 time: the widget's traits (`viewer.json`, and the model as `objects.json.gz`) and the drawn
 rows' footprints in longitude and latitude (`footprints.geojson`, bimpolars' `geog` column).
-The page runs the widget on a `StaticModel` (`site/static-model.ts`), an anywidget model
-without a kernel, and follows its `selected` trait. `just site` builds it into `site/dist`;
-`just site-data` and then `just site-dev` serve it with hot reload.
+The page runs the widget with `mountGeoSpeckleViewer` from the npm package (below), on a
+`StaticModel`, an anywidget model without a kernel, and follows its `selected` trait.
+`just site` builds it into `site/dist`; `just site-data` and then `just site-dev` serve it with
+hot reload.
+
+## In a web page
+
+The widgets' front end is the npm package
+[`@bedrock-engineer/geospeckle-viewer`](packages/geospeckle-viewer) (not published yet), which
+runs GeoSpeckleViewer on any web page, without Python. Without a ground map and 3D Tiles it is
+SpeckleViewer:
+
+```ts
+import { mountGeoSpeckleViewer } from "@bedrock-engineer/geospeckle-viewer";
+
+const { model, loaded } = mountGeoSpeckleViewer(document.getElementById("viewer")!, {
+  objects_gz: await (await fetch("objects.json.gz")).arrayBuffer(),
+  height: 600,
+});
+model.on("change:selected", () => console.log(model.get("selected")));
+await loaded;
+```
 
 ## Install
 
@@ -127,7 +146,7 @@ The package depends on anywidget and traitlets only. The built widgets are in th
 `@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the wheel), so the notebook needs
 no network access; their licenses are in `specklewidgets/static/speckle-viewer.LICENSES.txt`.
 GeoSpeckleViewer's bundle adds 3d-tiles-renderer (2.9 MB, 0.8 MB of the wheel; licenses in
-`geo-speckle-viewer.LICENSES.txt`). A BimDataFrame needs the extra `specklewidgets[bim]`
+`geospeckle-viewer.LICENSES.txt`). A BimDataFrame needs the extra `specklewidgets[bim]`
 (specklepy, which turns its rows into Speckle objects) and bimpolars, which any BimDataFrame
 comes with. `specklewidgets.geo` needs the extra `specklewidgets[geo]`: pyproj, which is what
 `bimpolars[geobim]` adds to bimpolars. The ground map's tiles come from tile.openstreetmap.org
@@ -259,14 +278,16 @@ bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to
 
 ## Development
 
-The repo has two toolchains, npm for `js/` and uv for the Python, and
+The repo has two toolchains, [pnpm](https://pnpm.io) for the JS (a workspace of
+`packages/geospeckle-viewer` and `site/`) and uv for the Python, and
 [just](https://just.systems) runs both (`scoop install just`, `brew install just`, or
 `uv tool install rust-just`; on Windows it needs Git Bash's `sh`):
 
 ```sh
 just                # lists the recipes
-just setup          # npm ci + uv sync --locked
-just build          # tsc + vite: js/ → src/specklewidgets/static/ (committed)
+just setup          # pnpm install --frozen-lockfile + uv sync --locked
+just build          # tsc + vite: packages/geospeckle-viewer → src/specklewidgets/static/ (committed)
+just build-npm      # the npm package's dist/, as it would be published
 just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
 just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
 just e2e            # the example notebooks in headless Chromium (see below)

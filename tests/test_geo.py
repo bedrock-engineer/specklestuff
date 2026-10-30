@@ -444,7 +444,7 @@ def test_the_3d_bag_has_tiles_at_sixty5(sixty5_3d_bag, sixty5_panden):
 # The widget
 
 
-def test_geo_speckle_viewer_takes_the_surroundings(site, ground_map):
+def test_geospeckle_viewer_takes_the_surroundings(site, ground_map):
     tileset = {"tileset": {"root": {}}, "ecef_to_world": np.eye(4).ravel().tolist()}
     viewer = GeoSpeckleViewer(ground_map=ground_map, tilesets=(tileset,))
     assert viewer.ground_map == ground_map

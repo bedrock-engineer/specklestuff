@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["js", "site"]
+  "include": ["packages/*/src", "site"]
 }

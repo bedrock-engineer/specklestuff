@@ -75,7 +75,7 @@ class GeoSpeckleViewer(SpeckleViewer):
     select them. The front end reports what they show in ``surroundings``.
     """
 
-    _esm = _STATIC / "geo-speckle-viewer.js"
+    _esm = _STATIC / "geospeckle-viewer.js"
 
     # The map under the model (GroundMap): bounds [west, south, east, north] in degrees, width
     # and height in pixels, lnglat_to_world (an affine [a, b, c, d, e, f]: x = a lon + b lat +

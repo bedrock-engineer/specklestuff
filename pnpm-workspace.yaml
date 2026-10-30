@@ -1,0 +1,12 @@
+# The npm package (packages/geospeckle-viewer) and the demo page that uses it (site). The root
+# holds the tools, the widget bundles' build (vite.config.js) and the e2e tests.
+packages:
+  - packages/*
+  - site
+
+# pnpm runs no install scripts unless they are listed. These two are skipped on purpose: esbuild
+# runs from its platform package without its postinstall, and msgpackr-extract is a native
+# speed-up for bull, a server-side peer of @speckle/shared that the widgets never import.
+ignoredBuiltDependencies:
+  - esbuild
+  - msgpackr-extract

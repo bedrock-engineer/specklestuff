@@ -1,13 +1,14 @@
 // The demo page: Sixty5 in a GeoSpeckleViewer beside a MapLibre map of the selected element's
 // footprint. The page is static: site/sixty5.py computes the widget's traits and the
-// footprints at build time, and the widget runs on a StaticModel instead of a kernel.
-import type { RenderProps } from "@anywidget/types";
+// footprints at build time, and @bedrock-engineer/geospeckle-viewer runs the widget without a
+// kernel.
+import {
+  type GeoSpeckleViewerModel,
+  mountGeoSpeckleViewer,
+} from "@bedrock-engineer/geospeckle-viewer";
 import type { FeatureCollection } from "geojson";
-import geoSpeckleViewer from "../js/geo-speckle-viewer";
-import type { GeoSpeckleViewerModel } from "../js/lib/types";
 import { type Basemap, FootprintMap, type Footprints, selectedFootprints } from "./footprint-map";
 import { splitter } from "./splitter";
-import { StaticModel } from "./static-model";
 
 /** Where site/sixty5.py's files are, relative to the page: any repository's Pages path works */
 const DATA = "data/";
@@ -93,7 +94,7 @@ async function main() {
     }
 
     // The viewer fills its pane: its height trait follows the pane's
-    const model = new StaticModel<GeoSpeckleViewerModel>({
+    const { model, loaded } = mountGeoSpeckleViewer(byId("viewer"), {
       ...state,
       objects_gz: objects,
       height: viewerPane.clientHeight,
@@ -120,9 +121,7 @@ async function main() {
       viewerPane.dataset.surroundings = JSON.stringify(model.get("surroundings"));
     });
 
-    // The widget reads only the model and its element
-    const props = { model, el: byId("viewer") } as unknown as RenderProps<GeoSpeckleViewerModel>;
-    await geoSpeckleViewer.render(props);
+    await loaded;
     loading.hidden = true;
   } catch (error) {
     console.error("The page failed to load", error);
