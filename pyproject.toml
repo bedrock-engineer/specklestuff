@@ -33,17 +33,24 @@ bim = [
 geo = [
     "pyproj>=3.7",
 ]
+server = [
+    "specklepy[bundle]>=2026.9.1",
+]
 
 [dependency-groups]
 dev = [
-    "bimpolars",
-    # the BimDataFrame intake's and the surroundings' extras, for their tests and the examples
-    "specklewidgets[bim,geo]",
+    # with specklepy's bundle reader, for bimpolars.bundle_objects
+    "bimpolars[speckle]",
+    # the extras of the BimDataFrame intake, the surroundings and the server module, for their
+    # tests and examples
+    "specklewidgets[bim,geo,server]",
     "marimo>=0.17",
     "mypy>=1.14",
     "pytest>=8.3",
     "ruff>=0.9",
     "types-shapely>=2",
+    # the token field of examples/speckle_receive_send.py
+    "wigglystuff>=0.5",
 ]
 # The pytest suite without the example's data and notebook toolchain
 test = [
@@ -74,6 +81,10 @@ exclude = ["/.claude", "/CLAUDE.md", "/CONTEXT.md", "/sandbox", "/e2e"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "live: talks to a real Speckle server with this machine's Speckle account; run with -m live",
+]
+addopts = "-m 'not live'"
 
 [tool.mypy]
 python_version = "3.12"

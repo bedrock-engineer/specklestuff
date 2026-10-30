@@ -12,9 +12,11 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `geo_speckle_viewer.py` (`GeoSpeckleViewer`, a `SpeckleViewer` subclass with its own
   `_esm`; the `GroundMap` and `Tileset` TypedDicts of its traits), `geo.py` (the surroundings
   of a georeferenced BimDataFrame: `osm_ground_map`, `pdok_3d_buildings`, `site_3d_tiles`,
-  `bag_panden_under`; the `[geo]` extra), `static/` the built bundles (committed,
-  `minify: false`, so the wheel and `git+` installs need no node) and each bundle's
-  `<name>.LICENSES.txt`, the third-party licenses rollup-plugin-license collects.
+  `bag_panden_under`; the `[geo]` extra), `server.py` (`local_client`, `token_client`,
+  `receive`, `send`, `ReceivedVersion`: a Speckle server, the `[server]` extra), `static/` the
+  built bundles (committed, `minify: false`, so the wheel and `git+` installs need no node)
+  and each bundle's `<name>.LICENSES.txt`, the third-party licenses rollup-plugin-license
+  collects.
 - `js/`: one entry per widget (`speckle-viewer.ts`, `geo-speckle-viewer.ts`) composing
   `js/lib/` modules: `viewer.ts` mounts the SpeckleViewer both entries share (models,
   selection, markers, the report) and hands back the viewer for the geo entry to add the
@@ -32,6 +34,8 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   APIs in the kernel, `e2e/surroundings.mjs` serves the map's tiles and the 3D BAG's tile of
   boxes in the browser) and live where PDOK and OSM answer.
   `e2e/marimo.mjs` serves a notebook and opens it for all three.
+  `examples/speckle_receive_send.py`: sign in, receive a version, compare it with the bucket's
+  frame, send it back; no e2e test (it needs a server).
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 - `CONTEXT.md`: the glossary (model, element, definition, member, placement).
 
@@ -69,6 +73,47 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `test_the_core_imports_neither_bimpolars_nor_specklepy` (test_facade.py) and
   `test_a_bimdataframe_without_specklepy_names_the_extra` (test_bim.py) run in a subprocess
   with `sys.modules[...] = None` to keep it that way.
+- `specklewidgets.server` needs the extra `[server]` (`specklepy[bundle]`: its bundle download
+  imports pyarrow) and `bimpolars[speckle]` (`bimpolars.bundle.bundle_objects`, the
+  projection of a bundle-only version with the two fixes specklepy's `to_base` lacks; never
+  specklepy's own `operations.receive` of a bundle reference, which is the plain `to_base`).
+  It uses specklepy's deprecated v3 pipeline on purpose (issue #4: until Speckle opens its
+  bundle code; no upstream bug reports) and silences only those DeprecationWarnings, by
+  message (`server._DEPRECATIONS`); a test in `tests/test_server.py` runs a send and a
+  receive with DeprecationWarnings as errors.
+- A token is never written to disk: `token_client` keeps it in the client, `send` passes
+  `use_default_cache=False` (no SQLite object cache), and the example takes it from an
+  `EnvConfig` field whose validator signs in once and keeps the client
+  (`test_no_file_holds_the_token` sends and receives with every home and cache folder
+  redirected and searches them). A token goes only where it was meant to: `local_client`
+  signs each account in at the URL stored with it, scheme included, never the caller's URL
+  (it only selects the accounts by host); `token_client` warns on plain http to a host other
+  than loopback; bundle files come from presigned URLs without the token
+  (`test_bundle_downloads_carry_no_token`). `local_client` passes over an account whose
+  token the server refuses (HTTP 401 or 403, or a GraphQL error whose `extensions.code` is in
+  `server._REFUSED_CODES`) and lets other failures (an unreachable server, any other GraphQL
+  error) raise. It filters `get_local_accounts()` by host rather than calling
+  `get_accounts_for_server`, which keeps one account per user in `os.listdir` order and so
+  may drop the user's working account.
+- `receive` downloads with `specklepy.bundle.download.download_bundle` (not
+  `bundle.receive`, whose `Model` deletes its temporary folder on close and which raises
+  instead of answering "no bundle"), into `<directory>/<model id>/<version id>/`, the bucket's
+  `speckle-bundle` layout, and does not mark the version received. A temporary folder of
+  its own is removed again when the receive fails or the version has no bundle.
+- Server tests: `tests/test_server.py` runs everything against `tests/fake_speckle_server.py`,
+  a localhost server for the requests specklepy makes (GraphQL by query text, ServerTransport's
+  REST routes, the `/api/v2` artifact listing). When `server.py` starts using another
+  specklepy call, teach the fake its request. `tests/test_server_live.py` (marker `live`,
+  deselected by `addopts`; `just live`, which is `uv run pytest -m live`) repeats them on
+  app.speckle.systems and skips without a local account; `tests/round_trip.py` holds the
+  checks both share. The live round trip deletes a scratch project it made, and the objects
+  with it; in `SPECKLEWIDGETS_TEST_PROJECT` it deletes only the model and the sent objects
+  stay. A delete answered with False warns with the id instead of failing.
+- A round trip through `send` and `receive` keeps the drawn rows' ids, classes, meshes and
+  styles, not `container` (it comes back as the field
+  `properties.object.container`: `read_speckle` sets the column from a bundle only) nor the
+  levels (no mesh, not drawn); `simple_features` then lays each footprint at its own lowest z.
+  Left so on purpose (bimpolars#21); `test_a_sent_bimdataframe_comes_back` pins it.
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
   one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
   each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s
@@ -170,7 +215,16 @@ zoom-9 tiles (PDOK, 2026-10-30); 1363 rows drawn (with a mesh, less 1284 opening
 51.444345..51.448716 N with the 150 m margin, a 2048 x 2042 image (without the grids). The site
 origin is at 5.4601517 E, 51.4464756 N, ellipsoidal height 62.544 m (NAP 18.625 m and
 NLGEO2018's 43.919 m) with the NSGI grids, and at 5.460153 E, 51.446476 N, 18.625 m without
-them.
+them. The live e2e (CI, 2026-10-30) draws the 3D BAG's Sixty5 from 0.04 to 57.28 m: PDOK's
+heights are ellipsoidal, and with the grids the 3D BAG stands on the map.
+
+The server tests (`tests/test_server.py`, 31 tests, 38 s): receiving the bundle-only arch
+version from the fake server gives the bucket's frame (`BimDataFrame.equals`), and its non-root
+objects the bucket's ids; sending the arch frame (5568 drawn rows) and receiving it back keeps every
+drawn row's id, class, triangles (corner by corner) and styles (name, face count, colour to
+1/255), in 16 s. The live round trip sends the str frame (918 drawn rows) instead, to keep
+the upload to joost's account small. The cloud containers cannot reach app.speckle.systems,
+so the live tests have not run there (they skip); the fake covers the same calls offline.
 
 The widgets load nothing from a CDN, so `just e2e` runs in the cloud containers as it does in
 CI. The tests fail on any request to esm.sh and on three's "Multiple instances of Three.js"

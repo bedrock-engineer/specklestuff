@@ -86,6 +86,24 @@ viewer.widget.surroundings  # {"ground_map": [...], "tiles": 2, "hidden_features
 
 `examples/sixty5_geo.py` is that notebook, with the Sixty5 structural model.
 
+`specklewidgets.server` receives a version from a Speckle server, as its bundle and its v3
+objects, and sends a BimDataFrame as a new version, signed in with this machine's Speckle
+account or a personal access token:
+
+```python
+from specklewidgets.server import local_client, receive, send
+
+client = local_client("https://app.speckle.systems")  # None without a local account
+version = receive(client, "461cc2a20f", "363cae173a", "d5e5bacdde")  # the arch version
+viewer = mo.ui.anywidget(SpeckleViewer(version.objects))
+bdf = version.bimdataframe()  # read_speckle(version.objects, version.bundle)
+
+version_id = send(client, bdf, "<project id>", "<model id>", message="from a notebook")
+```
+
+`examples/speckle_receive_send.py` is that notebook, with a token field (wigglystuff's
+`EnvConfig`) for a machine without a Speckle account.
+
 ## Install
 
 ```sh
@@ -101,7 +119,8 @@ GeoSpeckleViewer's bundle adds 3d-tiles-renderer (2.9 MB, 0.8 MB of the wheel; l
 comes with. `specklewidgets.geo` needs the extra `specklewidgets[geo]`: pyproj, which is what
 `bimpolars[geobim]` adds to bimpolars. The ground map's tiles come from tile.openstreetmap.org
 and the 3D BAG from api.pdok.nl, so the browser needs to reach both, and the notebook's Python
-api.pdok.nl.
+api.pdok.nl. Receiving and sending need the extra `specklewidgets[server]` (specklepy with its
+bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to v3 objects.
 
 ## API
 
@@ -197,6 +216,33 @@ api.pdok.nl.
     its `object` set.
   - `bim_collection(bdf, *, color=None, name=None)`: the same as a specklepy `Collection`,
     one sub-collection per class, for specklepy to send.
+- `specklewidgets.server` (the `[server]` extra and `bimpolars[speckle]`), through specklepy's
+  v3 pipeline (`ServerTransport`, `operations.send`, `version.create`), which specklepy
+  deprecates since 2026.9; its DeprecationWarnings are silenced:
+  - `local_client(server="https://app.speckle.systems")`: a `SpeckleClient` signed in with
+    this machine's Speckle account for the server (Speckle Manager's or a connector's, as
+    specklepy's `get_local_accounts` finds them; the default account first, each signed in
+    at the URL it was stored with, so a token stored for https never goes over http; a
+    refused token passed over), or None.
+  - `token_client(token, server="https://app.speckle.systems")`: a client signed in with a
+    personal access token, kept in memory only; `ValueError` if the server refuses it, and a
+    `UserWarning` when the server is plain http on another machine. A notebook takes the
+    token from a password field, such as wigglystuff's `EnvConfig`.
+  - `receive(client, project_id, model_id, version_id=None, *, directory=None)`: a version
+    (the model's latest by default) as a `ReceivedVersion`: `objects`, its v3 objects root
+    first, and `bundle`, the folder its bundle is downloaded into,
+    `<directory>/<model id>/<version id>/` (a temporary folder by default, removed again
+    when the receive fails; None when the server has no bundle for it). A bundle-only
+    version's objects are projected from its bundle by `bimpolars.bundle.bundle_objects`
+    (`v3_route` `"projected"`, else `"server"`). `ReceivedVersion.bimdataframe()` reads it
+    with `bimpolars.read_speckle`, objects and bundle; for the Revit Advanced Sample's
+    architectural version that is the bimpolars bucket's frame.
+  - `send(client, bdf, project_id, model_id, *, message=None, color=None, name=None)`: sends
+    a BimDataFrame's `bim_collection` as a new version of a model and returns its id;
+    `receive` and `read_speckle` give back its drawn rows' ids, classes and meshes. Not the
+    `container` column, which comes back as the field `properties.object.container`
+    (`read_speckle` sets `container` from a bundle only), nor the levels, which have no mesh
+    and are not drawn; `simple_features` then lays each footprint at its own lowest z.
 
 ## Development
 
@@ -211,7 +257,19 @@ just build          # tsc + vite: js/ → src/specklewidgets/static/ (committed)
 just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
 just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
 just e2e            # the example notebooks in headless Chromium (see below)
+just live           # receive and send on a real Speckle server (see below)
 ```
+
+`tests/test_server.py` receives and sends through a fake Speckle server on localhost
+(`tests/fake_speckle_server.py`, the requests specklepy makes), which serves the architectural
+version from the bimpolars bucket. `just live` (`uv run pytest -m live`) runs the same checks
+against app.speckle.systems with this machine's Speckle account, and skips without one (CI has
+none and gets no token): it receives the architectural version and compares it with the
+bucket's frame, and sends the structural model into a new model of
+`SPECKLEWIDGETS_TEST_PROJECT`, or of a new private project, on `SPECKLEWIDGETS_TEST_SERVER`
+(app.speckle.systems by default). It deletes a project it made, and with it the objects it
+sent; in `SPECKLEWIDGETS_TEST_PROJECT` it deletes only the model, and the sent objects stay in
+that project.
 
 `just e2e` serves the example notebooks with marimo, opens them in headless Chromium (WebGL
 by SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
