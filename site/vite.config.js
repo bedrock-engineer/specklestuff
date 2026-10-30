@@ -24,8 +24,28 @@ export default defineConfig({
       transformIndexHtml(html) {
         const intro = readFileSync(path.join(import.meta.dirname, "intro", `${site}.html`), "utf8");
         const [, h1, rest] = intro.match(/<h1>(.*?)<\/h1>(.*)/s);
-        const title = h1.replace(/<[^>]*>/g, "").trim();
-        return html.replaceAll("<!-- title -->", title).replace("<!-- intro -->", rest.trim());
+        const text = (fragment) =>
+          fragment
+            .replace(/<[^>]*>/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        // The intro's paragraphs as sentences, the arrow that points at the viewer below left out
+        const paragraphs = rest.split("</p>").map(text).filter(Boolean);
+        const description = paragraphs
+          .map((paragraph, i) => {
+            let sentence = paragraph.replace(/^↓\s*/, "");
+            if (sentence !== paragraph && !paragraphs[i - 1]?.endsWith(":")) {
+              sentence = sentence[0].toUpperCase() + sentence.slice(1);
+            }
+            return /[.:!?]$/.test(sentence) ? sentence : `${sentence}.`;
+          })
+          .join(" ")
+          .replaceAll('"', "&quot;");
+        return html
+          .replaceAll("<!-- title -->", text(h1))
+          .replaceAll("<!-- description -->", description)
+          .replace("<!-- url -->", `https://bedrock-engineer.github.io/${site}/`)
+          .replace("<!-- intro -->", rest.trim());
       },
     },
   ],

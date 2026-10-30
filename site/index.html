@@ -3,12 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- The title and the intro below: site/intro/<SITE>.html, filled in by vite.config.js -->
+    <!-- From site/intro/<SITE>.html, filled in by vite.config.js: its h1 is the title, its
+         intro the header's and, as plain text, the description that link previews show -->
     <title><!-- title --></title>
-    <meta
-      name="description"
-      content="The structural model of Sixty5, a tower at Strijp-S in Eindhoven, read from IFC and converted to geodata with bimpolars, in specklestuff's GeoSpeckleViewer among PDOK's 3D BAG, beside a map of the clicked element's footprint."
-    />
+    <meta name="description" content="<!-- description -->" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="<!-- url -->" />
+    <meta property="og:title" content="<!-- title -->" />
+    <meta property="og:description" content="<!-- description -->" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
