@@ -42,7 +42,7 @@ try:
     from gql.transport.exceptions import TransportServerError
     from specklepy.api import operations
     from specklepy.api.client import SpeckleClient
-    from specklepy.api.credentials import get_accounts_for_server
+    from specklepy.api.credentials import get_local_accounts
     from specklepy.api.inputs.version_inputs import CreateVersionInput
     from specklepy.bundle.download import BundleReference, download_bundle
     from specklepy.logging.exceptions import GraphQLException, SpeckleException, SpeckleWarning
@@ -125,9 +125,11 @@ def local_client(server: str = DEFAULT_SERVER) -> SpeckleClient | None:
     """A client signed in with this machine's Speckle account for a server.
 
     The accounts are those Speckle Manager and the Speckle connectors store, as specklepy's
-    ``get_local_accounts`` reads them (``SPECKLE_USERDATA_PATH`` moves their folder), including
-    an account of a server that moved to this one. The default account is tried first; an
-    account whose token the server refuses is passed over.
+    ``get_local_accounts`` reads them (``SPECKLE_USERDATA_PATH`` moves their folder), whose
+    server URL has the server's host. The default account is tried first, and an account
+    whose token the server refuses is passed over, also when another account of the same user
+    follows (specklepy's ``get_accounts_for_server`` keeps one account per user, whichever it
+    lists first).
 
     Args:
         server: The server's URL; ``https://`` when it has no scheme.
@@ -144,7 +146,9 @@ def local_client(server: str = DEFAULT_SERVER) -> SpeckleClient | None:
         # specklepy reads the accounts through its deprecated SQLiteTransport
         for deprecation in _DEPRECATIONS:
             warnings.filterwarnings("ignore", deprecation, DeprecationWarning)
-        accounts = get_accounts_for_server(urlsplit(url).netloc)
+        accounts = get_local_accounts()
+    host = urlsplit(url).netloc
+    accounts = [account for account in accounts if _host(account.serverInfo.url) == host]
     for account in sorted(accounts, key=lambda account: not account.isDefault):
         client = _client(url)
         try:
@@ -335,6 +339,13 @@ def _server_url(server: str) -> str:
     if not parts.netloc:
         raise ValueError(f"{server!r} names no server")
     return f"{parts.scheme}://{parts.netloc}"
+
+
+def _host(url: str | None) -> str:
+    """The host (and port) of a URL, ``https`` assumed when it names no scheme."""
+    if not url:
+        return ""
+    return urlsplit(url if "://" in url else f"https://{url}").netloc
 
 
 def _client(url: str) -> SpeckleClient:

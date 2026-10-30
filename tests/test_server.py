@@ -7,6 +7,7 @@ The same checks against a real server are in test_server_live.py.
 """
 
 import json
+import os
 import tempfile
 import warnings
 from pathlib import Path
@@ -89,6 +90,23 @@ def test_an_account_the_server_refuses_is_passed_over(fake, accounts):
     add_account(accounts, fake.url, "expired", default=True)
     assert server.local_client(fake.url) is None
     add_account(accounts, fake.url, fake.token)
+    client = server.local_client(fake.url)
+    assert client is not None
+    assert client.account.token == fake.token
+
+
+@pytest.mark.parametrize("expired_first", [True, False])
+def test_every_account_of_a_user_is_tried(fake, accounts, monkeypatch, expired_first):
+    # specklepy's get_accounts_for_server keeps the first account of each user in the
+    # folder's listing order, which made the test above fail on CI
+    add_account(accounts, fake.url, "expired")
+    add_account(accounts, fake.url, fake.token)
+    listing = sorted(path.name for path in accounts.iterdir())
+    listing.sort(key=lambda name: name.startswith("expired"), reverse=expired_first)
+    listdir = os.listdir
+    monkeypatch.setattr(
+        os, "listdir", lambda path: listing if Path(path) == accounts else listdir(path)
+    )
     client = server.local_client(fake.url)
     assert client is not None
     assert client.account.token == fake.token
