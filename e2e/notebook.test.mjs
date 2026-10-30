@@ -7,15 +7,11 @@
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
 // bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs).
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { chromium } from "playwright";
-import { buildMirror, routeEsmSh } from "./esm-mirror.mjs";
+import { canvasContent, MINUTE, openNotebook } from "./marimo.mjs";
 
-const ROOT = path.join(import.meta.dirname, "..");
 // The canvas as the test saw it, for a look when it fails (gitignored)
 const OUT = path.join(import.meta.dirname, ".out");
 const NOTEBOOK = "examples/rvt_advanced_sample.py";
@@ -27,94 +23,17 @@ const SCENE_BBOX = [-116.6763, -121.7323, -7.2, 202.3891, 75.7287, 15.2066];
 // The viewer's float32 vertices, 200 m from the origin
 const BBOX_TOLERANCE = 1e-4;
 
-const MINUTE = 60_000;
-
-async function freePort() {
-  const server = createServer();
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address();
-  await new Promise((resolve) => server.close(resolve));
-  return port;
-}
-
-async function waitForServer(url, timeout) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    try {
-      if ((await fetch(url)).ok) {
-        return;
-      }
-    } catch {
-      // not listening yet
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(`${url} did not answer within ${timeout / 1000} s`);
-}
-
-/** Pixels that differ from the canvas's most common colour, as a fraction, and colours */
-async function canvasContent(page, png) {
-  return page.evaluate(async (base64) => {
-    const blob = await (await fetch(`data:image/png;base64,${base64}`)).blob();
-    const image = await createImageBitmap(blob);
-    const canvas = new OffscreenCanvas(image.width, image.height);
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0);
-    const { data } = context.getImageData(0, 0, image.width, image.height);
-    const counts = new Map();
-    for (let i = 0; i < data.length; i += 4) {
-      const colour = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
-      counts.set(colour, (counts.get(colour) ?? 0) + 1);
-    }
-    const pixels = data.length / 4;
-    const background = Math.max(...counts.values());
-    return { drawn: (pixels - background) / pixels, colours: counts.size };
-  }, png.toString("base64"));
-}
-
-let marimo;
-let browser;
+let notebook;
 let page;
-const errors = [];
+let errors;
 
 before(async () => {
-  await buildMirror();
-  const port = await freePort();
-  marimo = spawn(
-    "uv",
-    [
-      "run",
-      "marimo",
-      "run",
-      NOTEBOOK,
-      "--headless",
-      "--no-token",
-      "--no-sandbox",
-      "--port",
-      `${port}`,
-    ],
-    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] },
-  );
-  const url = `http://127.0.0.1:${port}/`;
-  await waitForServer(url, 2 * MINUTE);
-
-  // SwiftShader: WebGL without a GPU
-  browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-  await routeEsmSh(context);
-  page = await context.newPage();
-  page.on("console", (message) => {
-    if (message.type() === "error") {
-      errors.push(message.text());
-    }
-  });
-  page.on("pageerror", (error) => errors.push(`${error.name}: ${error.message}`));
-  await page.goto(url);
+  notebook = await openNotebook(NOTEBOOK);
+  ({ page, errors } = notebook);
 });
 
 after(async () => {
-  await browser?.close();
-  marimo?.kill();
+  await notebook?.close();
 });
 
 test("the three models render in one viewer", { timeout: 10 * MINUTE }, async () => {

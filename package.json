@@ -14,7 +14,7 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "e2e": "node --test --test-timeout=900000 e2e/notebook.test.mjs",
+    "e2e": "node --test --test-concurrency=1 --test-timeout=1200000 e2e/notebook.test.mjs e2e/bimdataframe.test.mjs",
     "release": "release-it",
     "build": "tsc && rm -rf src/specklewidgets/static && ENTRY=js/speckle-viewer.ts vite build"
   },
