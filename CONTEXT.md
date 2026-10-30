@@ -7,7 +7,8 @@ clicks elements and reads their data back in Python.
 
 **Model**:
 One Speckle version's v3 objects, its root (a Collection) first, then everything in its
-`__closure`. Several models load side by side, each into its own subtree of the viewer.
+`__closure`. Several models load side by side, each into its own subtree of the viewer. A
+BimDataFrame becomes one model: a DataObject per row with a mesh.
 _Avoid_: version (the server's word for the same thing), project
 
 **Element**:

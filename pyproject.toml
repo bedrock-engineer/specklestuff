@@ -25,9 +25,16 @@ dependencies = [
 Repository = "https://github.com/bedrock-engineer/specklestuff"
 Issues = "https://github.com/bedrock-engineer/specklestuff/issues"
 
+[project.optional-dependencies]
+bim = [
+    "specklepy>=2026.9.1",
+]
+
 [dependency-groups]
 dev = [
     "bimpolars",
+    # the BimDataFrame intake's extra, for its tests and the example
+    "specklewidgets[bim]",
     "marimo>=0.17",
     "mypy>=1.14",
     "pytest>=8.3",
@@ -69,7 +76,7 @@ strict = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["anywidget", "anywidget.*"]
+module = ["anywidget", "anywidget.*", "specklepy.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

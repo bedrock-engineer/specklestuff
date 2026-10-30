@@ -7,13 +7,17 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 
 - `src/specklewidgets/`: the Python package, the single source of truth for the Python API.
   `speckle_viewer.py` (`SpeckleViewer`: traits + constructor facade; `Marker`), `models.py`
-  (`models_gz`: packs models and adjusts what trips the viewer), `static/` the built bundles
-  (committed, `minify: false`, so the wheel and `git+` installs need no node).
+  (`models_gz`: packs models and adjusts what trips the viewer), `bim.py` (`bim_objects`,
+  `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra), `static/` the built
+  bundles (committed, `minify: false`, so the wheel and `git+` installs need no node).
 - `js/`: one entry per widget (`speckle-viewer.ts`) composing `js/lib/` modules;
   `js/lib/types.ts` is the TS mirror of the trait comments, change them together. Pure logic
   (selection, the element count, gunzip) is in `js/lib` with colocated `*.test.ts` (vitest).
 - `examples/rvt_advanced_sample.py`: the marimo notebook with the three Revit Advanced Sample
   models; `e2e/notebook.test.mjs` opens it in headless Chromium.
+  `examples/rvt_arch_bimdataframe.py`: the architectural model as BimDataFrames from
+  `read_speckle` and `read_ifc`, two viewers; `e2e/bimdataframe.test.mjs` opens it.
+  `e2e/marimo.mjs` serves a notebook and opens it for both.
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 - `CONTEXT.md`: the glossary (model, element, definition, member, placement).
 
@@ -28,8 +32,18 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   versions in package.json's `dependencies`, every URL with `?target=es2022` (vite.config.js
   `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. Bump the three
   together: three must be the version the viewer's own range resolves to on esm.sh.
-- The Python core depends on anywidget and traitlets only. bimpolars is a dev dependency (the
-  example and the data tests); a BimDataFrame intake (#2) decides whether it becomes a core one.
+- The Python core depends on anywidget and traitlets only and imports nothing else.
+  `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
+  bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
+  (it is not on PyPI). `SpeckleViewer` recognises a BimDataFrame by the class in
+  `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then.
+  `tests/test_bim.py` and the data tests skip without bimpolars or specklepy.
+- The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
+  one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
+  each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s
+  `_flatten`, so that `read_speckle` reads the drawn rows back (a test pins that). Unstyled
+  faces get no RenderMaterial, so they read back unstyled. Colours for `color` are the
+  dataviz reference palette's light categorical slots and blue ramp (steps 250 to 700).
 - Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
   Python >= 3.12. Trait names stay the JSON wire format; facades only translate arguments.
 - The viewer works in metres: `scene_bbox` and `markers` are in metres whatever the models'
@@ -65,5 +79,13 @@ copy of the bimpolars bucket, or let it download (16 MB). Known numbers (bucket 
 mep 6942 (13,546 together); scene bbox x -116.6763..202.3891, y -121.7323..75.7287,
 z -7.2..15.2066 m; `models_gz` of the three: 53 MB of JSON, 6.0 MB gzipped, 2 s.
 
+The architectural model as BimDataFrames (`tests/test_rvt_arch_bimdataframe.py`, read_ifc
+takes 45 s): `read_speckle` with the bundle draws 5568 rows (every row with a mesh), bbox x
+-116.6763..202.3891, y -76.0339..75.7287, z -1.8288..12.5745 m; `read_ifc` of
+`rvt-advanced-sample-arch.ifc` draws 5512 (5647 with a mesh less 135 openings), bbox x
+-107.4743..211.5911, y -53.3989..98.3638, z -1.8288..12.4854 m. `bim_objects` takes 4 to 6 s
+on either (specklepy hashes 17,600 objects, 36 to 45 MB of JSON).
+
 esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well.
+of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. The two e2e files run one
+after the other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium.

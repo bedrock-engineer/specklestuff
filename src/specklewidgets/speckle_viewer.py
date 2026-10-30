@@ -1,23 +1,34 @@
-"""Speckle's web viewer in a notebook, fed with raw Speckle models: :class:`SpeckleViewer`.
+"""Speckle's web viewer in a notebook, fed with Speckle models or BimDataFrames.
 
 The widget runs Speckle's own viewer (``@speckle/viewer``, the npm package behind the Speckle
 web app, loaded from esm.sh with three.js) without a Speckle server. The v3 objects of one or
 more models go to the browser as gzipped JSON (:func:`~specklewidgets.models_gz`), and a
 ``SpeckleLoader`` subclass hands each model to ``ObjectLoader2Factory.createFromObjects``,
-the in-memory object loader.
+the in-memory object loader. A :class:`bimpolars.BimDataFrame` becomes v3 objects first,
+through :func:`specklewidgets.bim.bim_objects` (the ``[bim]`` extra).
 """
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anywidget
 import traitlets
 
 from specklewidgets.models import Model, models_gz
+
+if TYPE_CHECKING:
+    import polars as pl
+    from bimpolars import BimDataFrame
+    from typing_extensions import TypeIs  # typing's from Python 3.13
+
+type ViewerModel = Model | BimDataFrame
+"""A model as :class:`SpeckleViewer` takes it: a Speckle version's v3 objects, root first
+(parsed or as JSON array text), or a BimDataFrame."""
 
 _STATIC = Path(__file__).parent / "static"
 
@@ -43,8 +54,10 @@ class SpeckleViewer(anywidget.AnyWidget):
 
     ``SpeckleViewer(models)`` packs one model or a sequence of models with
     :func:`~specklewidgets.models_gz`; each model is a Speckle version's v3 objects, its root
-    first, as :func:`bimpolars.speckle.version_objects` gives them. The traits are the wire
-    format and can be set directly as well.
+    first, as :func:`bimpolars.speckle.version_objects` gives them, or a
+    :class:`bimpolars.BimDataFrame`, which :func:`specklewidgets.bim.bim_objects` turns into
+    v3 objects: one element per row with a mesh, coloured by its styles or by ``color``. The
+    traits are the wire format and can be set directly as well.
 
     Clicking an element selects it; shift-click adds to the selection and a click on nothing
     clears it. A click on an instance selects its InstanceProxy, whose applicationId is the
@@ -75,8 +88,9 @@ class SpeckleViewer(anywidget.AnyWidget):
 
     def __init__(
         self,
-        models: Model | Sequence[Model] | None = None,
+        models: ViewerModel | Sequence[ViewerModel] | None = None,
         *,
+        color: str | pl.Expr | None = None,
         markers: Sequence[Marker | Mapping[str, Any]] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -85,22 +99,65 @@ class SpeckleViewer(anywidget.AnyWidget):
         Args:
             models: One model or a sequence of models (→ ``objects_gz``, packed by
                 :func:`~specklewidgets.models_gz`). A model is a Speckle version's v3
-                objects, its root first: parsed, or as JSON array text.
+                objects, its root first, parsed or as JSON array text; or a
+                :class:`bimpolars.BimDataFrame` (needs the ``[bim]`` extra).
+            color: Colours the elements of the BimDataFrames by a column (its name) or a
+                polars expression instead of by their styles; see
+                :func:`specklewidgets.bim.bim_collection`.
             markers: Axes with a label (→ ``markers``): :class:`Marker` or the trait's dicts.
             **kwargs: Traits, passed through unchanged, such as ``height=600``.
+
+        Raises:
+            ValueError: If ``color`` is given without a BimDataFrame to colour.
         """
-        if models is not None:
-            kwargs["objects_gz"] = models_gz(*_as_models(models))
+        if models is not None or color is not None:
+            as_models = [] if models is None else _as_models(models)
+            kwargs["objects_gz"] = models_gz(*_speckle_models(as_models, color))
         if markers is not None:
             kwargs["markers"] = [_marker_trait(marker) for marker in markers]
         super().__init__(**kwargs)
 
 
-def _as_models(models: Model | Sequence[Model]) -> list[Model]:
-    """One model, or each of a sequence of models: a model is text or starts with a mapping."""
-    if isinstance(models, str) or (len(models) > 0 and isinstance(models[0], Mapping)):
+def _as_models(models: ViewerModel | Sequence[ViewerModel]) -> list[ViewerModel]:
+    """One model, or each of a sequence of models.
+
+    A model is text, a BimDataFrame, or a sequence that starts with a mapping (an object).
+    """
+    if isinstance(models, str) or _is_bim_data_frame(models):
+        return [models]
+    if len(models) > 0 and isinstance(models[0], Mapping):
         return [models]  # type: ignore[list-item]
     return list(models)  # type: ignore[arg-type]
+
+
+def _speckle_models(models: Sequence[ViewerModel], color: str | pl.Expr | None) -> list[Model]:
+    """The models as v3 objects: each BimDataFrame through ``bim_objects``.
+
+    Raises:
+        ValueError: If ``color`` is given and no model is a BimDataFrame.
+    """
+    speckle_models: list[Model] = []
+    for model in models:
+        if _is_bim_data_frame(model):
+            # specklepy is the [bim] extra's: imported only for a BimDataFrame
+            from specklewidgets.bim import bim_objects
+
+            speckle_models.append(bim_objects(model, color=color))
+        else:
+            speckle_models.append(model)
+    if color is not None and not any(_is_bim_data_frame(model) for model in models):
+        raise ValueError("color colours the elements of BimDataFrames; models has none")
+    return speckle_models
+
+
+def _is_bim_data_frame(value: object) -> TypeIs[BimDataFrame]:
+    """Whether the value is a BimDataFrame, without importing bimpolars for it.
+
+    A BimDataFrame exists only once bimpolars is imported, so the check looks for the class in
+    the modules already imported.
+    """
+    frame = sys.modules.get("bimpolars.frame")
+    return frame is not None and isinstance(value, frame.BimDataFrame)
 
 
 def _marker_trait(marker: Marker | Mapping[str, Any]) -> dict[str, Any]:

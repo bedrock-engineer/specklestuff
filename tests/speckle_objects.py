@@ -2,6 +2,7 @@
 
 import gzip
 import json
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 COLLECTION = "Speckle.Core.Models.Collections.Collection"
@@ -83,3 +84,63 @@ def revit_like(root_id: str = "root-a") -> list[dict[str, Any]]:
 def unpack(objects_gz: bytes) -> list[list[dict[str, Any]]]:
     unpacked: list[list[dict[str, Any]]] = json.loads(gzip.decompress(objects_gz))
     return unpacked
+
+
+def children(obj: Mapping[str, Any], by_id: Mapping[str, Any]) -> Iterator[dict[str, Any]]:
+    for field in ("elements", "displayValue"):
+        for child in obj.get(field) or []:
+            yield by_id[child["referencedId"]] if "referencedId" in child else child
+
+
+def drawn_elements(objects: list[dict[str, Any]]) -> int:
+    """What a click can select: every object with a displayValue that draws a mesh, and every
+    instance whose definition draws one. A definition's members draw only where an instance
+    places them."""
+    by_id = {obj["id"]: obj for obj in objects}
+    by_application_id = {obj["applicationId"]: obj for obj in objects if "applicationId" in obj}
+    definitions = {d["applicationId"]: d for d in objects[0].get("instanceDefinitionProxies", [])}
+    members = {member for d in definitions.values() for member in d["objects"]}
+
+    def placed(obj: dict[str, Any]) -> Iterator[dict[str, Any]]:
+        if obj["speckle_type"].endswith("InstanceProxy"):
+            yield from (by_application_id[m] for m in definitions[obj["definitionId"]]["objects"])
+        else:
+            yield from (c for c in children(obj, by_id) if c.get("applicationId") not in members)
+
+    def draws(obj: dict[str, Any]) -> bool:
+        if obj["speckle_type"].endswith("Mesh"):
+            return bool(obj.get("vertices"))
+        return any(draws(child) for child in placed(obj))
+
+    count = 0
+    stack = [objects[0]]
+    while stack:
+        obj = stack.pop()
+        is_instance = obj["speckle_type"].endswith("InstanceProxy")
+        if (is_instance or obj.get("displayValue")) and draws(obj):
+            count += 1
+        if not is_instance:
+            stack.extend(placed(obj))
+    return count
+
+
+METRES_PER_UNIT = {"mm": 0.001, "cm": 0.01, "m": 1.0}
+
+
+def mesh_bbox(objects: list[dict[str, Any]]) -> list[float]:
+    """xmin, ymin, zmin, xmax, ymax, zmax in metres of every mesh, its DataChunks resolved."""
+    by_id = {obj["id"]: obj for obj in objects}
+    low, high = [float("inf")] * 3, [float("-inf")] * 3
+    for obj in objects:
+        if not obj["speckle_type"].endswith("Mesh"):
+            continue
+        values = [
+            value
+            for item in obj["vertices"]
+            for value in (by_id[item["referencedId"]]["data"] if "referencedId" in item else [item])
+        ]
+        scale = METRES_PER_UNIT[obj["units"]]
+        for axis in range(3):
+            low[axis] = min(low[axis], min(values[axis::3]) * scale)
+            high[axis] = max(high[axis], max(values[axis::3]) * scale)
+    return [*low, *high]
