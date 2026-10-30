@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-# bimpolars (with polars, shapely and numpy) is a dev dependency, pyproj the [geo] extra
+# bimpolars (with polars, shapely, numpy and pyproj) is a dev dependency
 data = pytest.importorskip("bimpolars.data")
 bimpolars = pytest.importorskip("bimpolars")
 geobim = pytest.importorskip("bimpolars.geobim")
@@ -56,7 +56,7 @@ def site(plain) -> Any:
         "EPSG:7415",
         *SIXTY5_ORIGIN,
         SIXTY5_ROTATION,
-        unit=bimpolars.crs.linear_unit(plain.crs),
+        unit=plain,
         name="Sixty5",
     )
     return geobim.set_crs(plain, crs)

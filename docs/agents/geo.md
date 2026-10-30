@@ -3,10 +3,9 @@
 `GeoSpeckleViewer` (`src/specklewidgets/geospeckle_viewer.py`) is a `SpeckleViewer` subclass
 with its own `_esm`, and the `GroundMap` and `Tileset` TypedDicts of its traits. Its JS entry
 adds the ground map (`packages/geospeckle-viewer/src/lib/ground-map.ts`, `map-tiles.ts`) and the 3D Tiles
-(`context-tiles.ts`, `hide-features.ts`) to the shared viewer. `specklewidgets.geo` (the `[geo]`
-extra: pyproj, what `bimpolars[geobim]` adds, listed as such until bimpolars is on PyPI) builds
-the surroundings of a georeferenced BimDataFrame: `osm_ground_map`, `pdok_3d_buildings`,
-`site_3d_tiles`, `bag_panden_under`. `examples/sixty5_geo.py` shows Sixty5's structural model at
+(`context-tiles.ts`, `hide-features.ts`) to the shared viewer. `specklewidgets.geo` (bimpolars
+and its pyproj) builds the surroundings of a georeferenced BimDataFrame: `osm_ground_map`,
+`pdok_3d_buildings`, `site_3d_tiles`, `bag_panden_under`. `examples/sixty5_geo.py` shows Sixty5's structural model at
 Strijp-S.
 
 ## The world

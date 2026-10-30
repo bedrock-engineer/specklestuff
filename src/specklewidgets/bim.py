@@ -10,8 +10,8 @@ column's values become the colours (``color``). :func:`bim_objects` serializes t
 objects with specklepy, root first: a model as :class:`~specklewidgets.SpeckleViewer` and
 :func:`~specklewidgets.models_gz` take it.
 
-This module needs the ``[bim]`` extra (specklepy) and bimpolars, which comes with any
-BimDataFrame; the rest of the package needs neither.
+This module needs bimpolars, which comes with any BimDataFrame; the rest of the package does
+not import it, nor specklepy.
 """
 
 from __future__ import annotations
@@ -26,23 +26,17 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
-from bimpolars.crs import linear_unit
+from bimpolars.crs import as_linear_unit
 from bimpolars.gltf import EXCLUDED_CLASSES
 from bimpolars.mesh import UNSTYLED_RGBA, mesh_arrays
 from bimpolars.speckle import OBJECT_SET, SPECKLE_UNITS
-
-try:
-    from specklepy.objects.data_objects import DataObject
-    from specklepy.objects.geometry import Mesh
-    from specklepy.objects.models.collections.collection import Collection
-    from specklepy.objects.other import RenderMaterial
-    from specklepy.objects.proxies import RenderMaterialProxy
-    from specklepy.serialization.base_object_serializer import BaseObjectSerializer
-    from specklepy.transports.memory import MemoryTransport
-except ImportError as error:
-    raise ImportError(
-        "specklewidgets.bim needs specklepy: install the extra specklewidgets[bim]"
-    ) from error
+from specklepy.objects.data_objects import DataObject
+from specklepy.objects.geometry import Mesh
+from specklepy.objects.models.collections.collection import Collection
+from specklepy.objects.other import RenderMaterial
+from specklepy.objects.proxies import RenderMaterialProxy
+from specklepy.serialization.base_object_serializer import BaseObjectSerializer
+from specklepy.transports.memory import MemoryTransport
 
 if TYPE_CHECKING:
     from bimpolars import BimDataFrame
@@ -232,7 +226,7 @@ def bim_collection(
     if ids.null_count() or ids.n_unique() != len(ids):
         raise ValueError("every drawn row needs an id of its own, for its applicationId")
 
-    unit = linear_unit(bdf.crs)
+    unit = as_linear_unit(bdf)
     units = next((code for code, known in SPECKLE_UNITS.items() if known == unit), None)
     scale = 1.0 if units is not None else unit.conversion_factor
     meshes = _RowMeshes(frame["mesh"], scale)
@@ -283,7 +277,7 @@ def bim_collection(
         ).append(element)
 
     root = Collection(
-        name=name or str(bdf.crs.get("name") or "BimDataFrame"),
+        name=name or bdf.crs.name or "BimDataFrame",
         elements=[
             Collection(name=class_name, elements=elements)
             for class_name, elements in sorted(collections.items())

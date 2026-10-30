@@ -12,7 +12,6 @@ def _():
     import marimo as mo
     import polars as pl
     from bimpolars import data, read_ifc, read_speckle, version_objects
-    from bimpolars.crs import linear_unit
     from bimpolars.gltf import EXCLUDED_CLASSES
 
     from specklewidgets import SpeckleViewer
@@ -23,7 +22,6 @@ def _():
         data,
         html,
         json,
-        linear_unit,
         mo,
         pl,
         read_ifc,
@@ -102,7 +100,7 @@ def _(ifc_color, ifc_viewer, mo, speckle_color, speckle_viewer):
 
 
 @app.cell
-def _(EXCLUDED_CLASSES, linear_unit, pl):
+def _(EXCLUDED_CLASSES, pl):
     def drawn(bdf):
         """The rows the viewer draws: those with a mesh, except the openings."""
         return bdf.frame.filter(
@@ -118,7 +116,7 @@ def _(EXCLUDED_CLASSES, linear_unit, pl):
             *(pl.col(c).max() for c in ("xmax", "ymax", "zmax")),
         ).row(0)
         # read_speckle and read_ifc keep the models' unit (millimetres here)
-        metres = linear_unit(bdf.crs).conversion_factor
+        metres = bdf.crs.axis_info[0].unit_conversion_factor
         return [corner * metres for corner in corners]
 
     return drawn, frame_bbox

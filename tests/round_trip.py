@@ -66,7 +66,7 @@ def assert_kept(sent: BimDataFrame, received: BimDataFrame) -> None:
     vertices: the intake writes one Speckle mesh per style, which read_speckle merges again.
     Its styles keep their names and face counts, and their colours to Speckle's 8 bits.
     """
-    assert received.crs["coordinate_system"] == sent.crs["coordinate_system"]
+    assert received.projjson["coordinate_system"] == sent.projjson["coordinate_system"]
     before = drawn(sent).sort("id")
     after = received.frame.filter(pl.col("mesh").is_not_null()).sort("id")
     assert after["id"].to_list() == before["id"].to_list()

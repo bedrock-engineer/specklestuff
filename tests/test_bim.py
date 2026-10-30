@@ -5,10 +5,10 @@ from typing import Any
 
 import pytest
 
-from speckle_objects import revit_like, run_without, unpack
+from speckle_objects import unpack
 from specklewidgets import SpeckleViewer, models_gz
 
-# The intake needs bimpolars (a dev dependency) and specklepy (the [bim] extra)
+# The intake needs bimpolars, a dev dependency
 bimpolars = pytest.importorskip("bimpolars")
 bim = pytest.importorskip("specklewidgets.bim")
 pl = pytest.importorskip("polars")
@@ -200,7 +200,7 @@ def test_read_speckle_reads_the_drawn_rows_back(bdf):
     drawn = bdf.frame.filter(pl.col("id").is_in(["wall", "window", "slab"]))
     joined = drawn.join(back.frame, on="id", suffix="_back")
     assert len(back) == len(joined) == 3
-    assert back.crs["coordinate_system"]["axis"][0]["unit"]["name"] == "millimetre"
+    assert back.crs.axis_info[0].unit_name == "millimetre"
     assert (
         joined["class"].cast(pl.String).to_list() == joined["class_back"].cast(pl.String).to_list()
     )
@@ -332,21 +332,6 @@ def test_the_viewer_takes_bimdataframes_and_speckle_models(bdf, model):
     viewer = SpeckleViewer([bdf, model])
     packed = unpack(viewer.objects_gz)
     assert [m[0]["id"] for m in packed] == [bim.bim_objects(bdf)[0]["id"], model[0]["id"]]
-
-
-def test_a_bimdataframe_without_specklepy_names_the_extra():
-    # bimpolars builds the frame without specklepy; the viewer needs it only for the intake
-    lines = run_without(
-        ("specklepy",),
-        "from bimpolars import read_speckle\n"
-        "from specklewidgets import SpeckleViewer\n"
-        f"bdf = read_speckle({revit_like()!r})\n"
-        "try:\n"
-        "    SpeckleViewer(bdf)\n"
-        "except ImportError as error:\n"
-        "    print(error)\n",
-    )
-    assert lines == ["specklewidgets.bim needs specklepy: install the extra specklewidgets[bim]"]
 
 
 def test_color_needs_a_bimdataframe(model):

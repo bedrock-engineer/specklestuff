@@ -18,7 +18,7 @@ import pytest
 from fake_speckle_server import FakeSpeckleServer
 from speckle_objects import revit_like
 
-# bimpolars[speckle] is a dev dependency, specklepy with its bundle reader the [server] extra
+# bimpolars[speckle], with specklepy's bundle reader, is a dev dependency
 data = pytest.importorskip("bimpolars.data")
 server = pytest.importorskip("specklewidgets.server")
 pl = pytest.importorskip("polars")

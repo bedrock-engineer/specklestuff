@@ -4,8 +4,8 @@
 OpenStreetMap snapshot on a plane under the model (``ground_map``) and 3D Tiles such as
 PDOK's 3D BAG around it (``tilesets``), each tileset without the buildings that lie mostly
 within its ``hide_within`` polygons, to make room for the model. Both are in the viewer's
-world: the models' coordinates in metres. :mod:`specklewidgets.geo` (the ``[geo]`` extra)
-builds them for a georeferenced BimDataFrame.
+world: the models' coordinates in metres. :mod:`specklewidgets.geo` builds them for a
+georeferenced BimDataFrame.
 """
 
 from __future__ import annotations
@@ -70,9 +70,9 @@ class GeoSpeckleViewer(SpeckleViewer):
     ``GeoSpeckleViewer(models, ground_map=..., tilesets=[...])`` draws the models as
     :class:`~specklewidgets.SpeckleViewer` does, on a ground map and among 3D Tiles, all in
     the viewer's world: the models' coordinates in metres. For a georeferenced BimDataFrame,
-    :mod:`specklewidgets.geo` builds both (the ``[geo]`` extra). The map and the tiles are
-    not elements: ``object_count`` and ``scene_bbox`` leave them out and a click does not
-    select them. The front end reports what they show in ``surroundings``.
+    :mod:`specklewidgets.geo` builds both. The map and the tiles are not elements:
+    ``object_count`` and ``scene_bbox`` leave them out and a click does not select them. The
+    front end reports what they show in ``surroundings``.
     """
 
     _esm = _STATIC / "geospeckle-viewer.js"

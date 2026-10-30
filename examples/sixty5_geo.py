@@ -15,7 +15,6 @@ def _():
     import pyproj
     import shapely
     from bimpolars import data, read_ifc, simple_features
-    from bimpolars.crs import linear_unit
     from bimpolars.geobim import derived_engineering_crs, set_crs
 
     from specklewidgets import GeoSpeckleViewer, Marker
@@ -29,7 +28,6 @@ def _():
         derived_engineering_crs,
         html,
         json,
-        linear_unit,
         math,
         mo,
         osm_ground_map,
@@ -63,7 +61,7 @@ def _(mo):
 
 
 @app.cell
-def _(data, derived_engineering_crs, linear_unit, math, pyproj, read_ifc, set_crs):
+def _(data, derived_engineering_crs, math, pyproj, read_ifc, set_crs):
     # PDOK's 3D Tiles stand at ellipsoidal heights, which take the NSGI grids: without them
     # PROJ passes NAP heights off as ellipsoidal ones (bimpolars warns) and the 3D BAG floats
     # 44 m above the map. With the network on, PROJ fetches them from cdn.proj.org
@@ -79,7 +77,7 @@ def _(data, derived_engineering_crs, linear_unit, math, pyproj, read_ifc, set_cr
         northing=384_156.5,
         orthometric_height=18.625,
         rotation=math.degrees(math.atan2(-0.7700680491484481, 0.6379617540893054)),
-        unit=linear_unit(bdf.crs),
+        unit=bdf,
         name="Sixty5",
     )
     site = set_crs(bdf, crs)

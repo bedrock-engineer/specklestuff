@@ -60,21 +60,19 @@ buildings the model takes the place of. `specklewidgets.geo` builds them for a B
 that bimpolars has placed on earth:
 
 ```python
+import bimpolars as bpl
 import pyproj
-from bimpolars import simple_features
-from bimpolars.crs import linear_unit
-from bimpolars.geobim import derived_engineering_crs, set_crs
 from specklewidgets import GeoSpeckleViewer
 from specklewidgets.geo import bag_panden_under, osm_ground_map, pdok_3d_buildings
 
 # PDOK's 3D Tiles are at ellipsoidal heights, which take the NSGI grids: PROJ fetches them
 pyproj.network.set_network_enabled(True)
-bdf = read_ifc(data.fetch("sixty5_O-S1-CON-structural-engineering.ifc"))
-crs = derived_engineering_crs(
-    "EPSG:7415", 160_071.5, 384_156.5, 18.625, -50.36, unit=linear_unit(bdf.crs), name="Sixty5"
+bdf = bpl.read_ifc(bpl.data.fetch("sixty5_O-S1-CON-structural-engineering.ifc"))
+crs = bpl.derived_engineering_crs(
+    "EPSG:7415", 160_071.5, 384_156.5, 18.625, -50.36, unit=bdf, name="Sixty5"
 )
-site = set_crs(bdf, crs)  # Sixty5 at Strijp-S, Eindhoven
-panden = bag_panden_under(simple_features(site))  # the BAG panden under the model
+site = bpl.set_crs(bdf, crs)  # Sixty5 at Strijp-S, Eindhoven
+panden = bag_panden_under(bpl.simple_features(site))  # the BAG panden under the model
 ground_map = osm_ground_map(site)  # 150 m of map around the model
 tilesets = [pdok_3d_buildings(site, ground_map["bounds"], hide_within=panden.values())]
 viewer = mo.ui.anywidget(GeoSpeckleViewer(site, ground_map=ground_map, tilesets=tilesets))
@@ -142,17 +140,17 @@ await loaded;
 uv add "specklewidgets @ git+https://github.com/bedrock-engineer/specklestuff"
 ```
 
-The package depends on anywidget and traitlets only. The built widgets are in the wheel, with
-`@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the wheel), so the notebook needs
-no network access; their licenses are in `specklewidgets/static/speckle-viewer.LICENSES.txt`.
-GeoSpeckleViewer's bundle adds 3d-tiles-renderer (2.9 MB, 0.8 MB of the wheel; licenses in
-`geospeckle-viewer.LICENSES.txt`). A BimDataFrame needs the extra `specklewidgets[bim]`
-(specklepy, which turns its rows into Speckle objects) and bimpolars, which any BimDataFrame
-comes with. `specklewidgets.geo` needs the extra `specklewidgets[geo]`: pyproj, which is what
-`bimpolars[geobim]` adds to bimpolars. The ground map's tiles come from tile.openstreetmap.org
-and the 3D BAG from api.pdok.nl, so the browser needs to reach both, and the notebook's Python
-api.pdok.nl. Receiving and sending need the extra `specklewidgets[server]` (specklepy with its
-bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to v3 objects.
+The package depends on anywidget, traitlets and specklepy, and has no extras. The built
+widgets are in the wheel, with `@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the
+wheel), so the notebook needs no network access; their licenses are in
+`specklewidgets/static/speckle-viewer.LICENSES.txt`. GeoSpeckleViewer's bundle adds
+3d-tiles-renderer (2.9 MB, 0.8 MB of the wheel; licenses in `geospeckle-viewer.LICENSES.txt`).
+A BimDataFrame and `specklewidgets.geo` need bimpolars, and pyproj with it, which any
+BimDataFrame comes with; the viewers themselves import neither bimpolars nor specklepy. The
+ground map's tiles come from tile.openstreetmap.org and the 3D BAG from api.pdok.nl, so the
+browser needs to reach both, and the notebook's Python api.pdok.nl. Receiving and sending need
+`bimpolars[speckle]`, which brings specklepy's bundle reader and projects a bundle-only version
+to v3 objects.
 
 ## API
 
@@ -207,9 +205,9 @@ bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to
     loaded), `hidden_features` (the features of those tiles that `hide_within` leaves out)
     and `hidden_heights` (`[zmin, zmax]` of those features in metres, `[]` for none: the
     building the model takes the place of should stand where the model does).
-- `specklewidgets.geo` (the `[geo]` extra), for a BimDataFrame in a georeferenced CRS such as
-  the Engineering CRS of `bimpolars.geobim.derived_engineering_crs`. The viewer's world goes to
-  ECEF and back through one 4x4, `bimpolars.geobim.linearized_site_to_ecef`, for the map, the
+- `specklewidgets.geo`, for a BimDataFrame in a georeferenced CRS such as the Engineering CRS
+  of `bimpolars.derived_engineering_crs`. The viewer's world goes to
+  ECEF and back through one 4x4, `bimpolars.linearized_site_to_ecef`, for the map, the
   tiles and the panden alike, so they line up with each other exactly and with PROJ's own
   transformation to a centimetre around a site, and to its own accuracy. In the Netherlands
   that takes the NSGI grids, which PROJ fetches from cdn.proj.org with its network on
@@ -232,7 +230,7 @@ bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to
     tileset (with region bounding volumes) that overlap `bounds`, fetching only the external
     tilesets on the way: 3d-tiles-renderer 0.3.46 would fetch every child of a tile without
     content.
-- `specklewidgets.bim` (the `[bim]` extra):
+- `specklewidgets.bim`:
   - `bim_objects(bdf, *, color=None, name=None)`: a BimDataFrame as the v3 objects of one
     Speckle model, root first, serialized with specklepy. One DataObject per row with a mesh
     (an `IfcOpeningElement`'s mesh, the void it cuts, is left out, as in bimpolars' glTF):
@@ -248,7 +246,7 @@ bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to
     its `object` set.
   - `bim_collection(bdf, *, color=None, name=None)`: the same as a specklepy `Collection`,
     one sub-collection per class, for specklepy to send.
-- `specklewidgets.server` (the `[server]` extra and `bimpolars[speckle]`), through specklepy's
+- `specklewidgets.server` (with `bimpolars[speckle]`), through specklepy's
   v3 pipeline (`ServerTransport`, `operations.send`, `version.create`), which specklepy
   deprecates since 2026.9; its DeprecationWarnings are silenced:
   - `local_client(server="https://app.speckle.systems")`: a `SpeckleClient` signed in with
