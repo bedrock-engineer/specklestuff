@@ -56,3 +56,7 @@ fmt:
 # The example notebook in headless Chromium (needs `npx playwright install chromium` once)
 e2e:
     npm run e2e
+
+# Receive and send on a real Speckle server with this machine's Speckle account (skips without one)
+live:
+    uv run pytest -m live

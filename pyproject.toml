@@ -29,16 +29,22 @@ Issues = "https://github.com/bedrock-engineer/specklestuff/issues"
 bim = [
     "specklepy>=2026.9.1",
 ]
+server = [
+    "specklepy[bundle]>=2026.9.1",
+]
 
 [dependency-groups]
 dev = [
-    "bimpolars",
-    # the BimDataFrame intake's extra, for its tests and the example
-    "specklewidgets[bim]",
+    # with specklepy's bundle reader, for bimpolars.bundle_objects
+    "bimpolars[speckle]",
+    # the BimDataFrame intake's and the server module's extras, for their tests and examples
+    "specklewidgets[bim,server]",
     "marimo>=0.17",
     "mypy>=1.14",
     "pytest>=8.3",
     "ruff>=0.9",
+    # the token field of examples/speckle_receive_send.py
+    "wigglystuff>=0.5",
 ]
 # The pytest suite without the example's data and notebook toolchain
 test = [
@@ -69,6 +75,10 @@ exclude = ["/.claude", "/CLAUDE.md", "/CONTEXT.md", "/sandbox", "/e2e"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "live: talks to a real Speckle server with this machine's Speckle account; run with -m live",
+]
+addopts = "-m 'not live'"
 
 [tool.mypy]
 python_version = "3.12"
