@@ -8,16 +8,29 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 - `src/specklewidgets/`: the Python package, the single source of truth for the Python API.
   `speckle_viewer.py` (`SpeckleViewer`: traits + constructor facade; `Marker`), `models.py`
   (`models_gz`: packs models and adjusts what trips the viewer), `bim.py` (`bim_objects`,
-  `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra), `static/` the built
-  bundles (committed, `minify: false`, so the wheel and `git+` installs need no node).
-- `js/`: one entry per widget (`speckle-viewer.ts`) composing `js/lib/` modules;
-  `js/lib/types.ts` is the TS mirror of the trait comments, change them together. Pure logic
-  (selection, the element count, gunzip) is in `js/lib` with colocated `*.test.ts` (vitest).
+  `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra),
+  `geo_speckle_viewer.py` (`GeoSpeckleViewer`, a `SpeckleViewer` subclass with its own
+  `_esm`; the `GroundMap` and `Tileset` TypedDicts of its traits), `geo.py` (the surroundings
+  of a georeferenced BimDataFrame: `osm_ground_map`, `pdok_3d_buildings`, `site_3d_tiles`,
+  `bag_panden_under`; the `[geo]` extra), `static/` the built bundles (committed,
+  `minify: false`, so the wheel and `git+` installs need no node).
+- `js/`: one entry per widget (`speckle-viewer.ts`, `geo-speckle-viewer.ts`) composing
+  `js/lib/` modules: `viewer.ts` mounts the SpeckleViewer both entries share (models,
+  selection, markers, the report) and hands back the viewer for the geo entry to add the
+  ground map (`ground-map.ts`, `map-tiles.ts`) and the 3D Tiles (`context-tiles.ts`,
+  `hide-features.ts`). `js/lib/types.ts` is the TS mirror of the trait comments, change them
+  together. Pure logic (selection, the element count, gunzip, the map's tiles, hiding
+  features) is in `js/lib` with colocated `*.test.ts` (vitest); `js/types/` declares what
+  @types/three 0.140 leaves out (the meshopt decoder).
 - `examples/rvt_advanced_sample.py`: the marimo notebook with the three Revit Advanced Sample
   models; `e2e/notebook.test.mjs` opens it in headless Chromium.
   `examples/rvt_arch_bimdataframe.py`: the architectural model as BimDataFrames from
   `read_speckle` and `read_ifc`, two viewers; `e2e/bimdataframe.test.mjs` opens it.
-  `e2e/marimo.mjs` serves a notebook and opens it for both.
+  `examples/sixty5_geo.py`: Sixty5's structural model in a GeoSpeckleViewer at Strijp-S;
+  `e2e/geo.test.mjs` opens it offline (`e2e/offline-pdok/sitecustomize.py` answers PDOK's
+  APIs in the kernel, `e2e/surroundings.mjs` serves the map's tiles and the 3D BAG's tile of
+  boxes in the browser) and live where PDOK and OSM answer.
+  `e2e/marimo.mjs` serves a notebook and opens it for all three.
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 - `CONTEXT.md`: the glossary (model, element, definition, member, placement).
 
@@ -28,14 +41,20 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `uv run mypy src`, `uv run ruff check` and `uv run ruff format --check` must pass.
 - One vite invocation per widget entry (`ENTRY=...`): anywidget loads each `_esm` as one
   self-contained module, so entries must not share chunks.
-- `@speckle/viewer`, `@speckle/objectloader2` and `three` are externals on esm.sh at the exact
-  versions in package.json's `dependencies`, every URL with `?target=es2022` (vite.config.js
-  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. Bump the three
-  together: three must be the version the viewer's own range resolves to on esm.sh.
+- `@speckle/viewer`, `@speckle/objectloader2`, `three` and `3d-tiles-renderer` are externals
+  on esm.sh at the exact versions in package.json's `dependencies`, plus the three.js example
+  modules in vite.config.js `SUBPATHS` (GLTFLoader, the meshopt decoder); every URL has
+  `?target=es2022` (vite.config.js `ESM_SH`), so that esm.sh serves the viewer's three.js and
+  ours as one module, and `3d-tiles-renderer`, whose three is a peer dependency, also
+  `&deps=three@<our three>`, without which esm.sh gives it its latest three.js. Bump the
+  viewer and three together: three must be the version the viewer's own range resolves to on
+  esm.sh. 3d-tiles-renderer 0.3.46 is the last for three.js 0.140; its npm dependencies
+  (react, postprocessing, @takram) are for its r3f and plugin entries, which we do not use.
 - The Python core depends on anywidget and traitlets only and imports nothing else.
   `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
   bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
-  (it is not on PyPI). `SpeckleViewer` recognises a BimDataFrame by the class in
+  (it is not on PyPI). `specklewidgets.geo` needs the extra `[geo]`: pyproj, what
+  `bimpolars[geobim]` adds, listed as such until bimpolars is on PyPI. `SpeckleViewer` recognises a BimDataFrame by the class in
   `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then.
   `tests/test_bim.py` and the data tests skip without bimpolars or specklepy.
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
@@ -52,6 +71,37 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   atomic node, then `elementOf`); `tests/test_rvt_advanced_sample.py` reaches the same numbers
   by a Python traversal, and the scene bbox from `bimpolars.read_speckle`. Change both sides
   together.
+
+## The surroundings (GeoSpeckleViewer, specklewidgets.geo)
+
+- The viewer's world is the models' coordinates in metres. `specklewidgets.geo` goes from it
+  to ECEF and back through one matrix, `bimpolars.geobim.linearized_site_to_ecef` of the
+  BimDataFrame's CRS (`_World`), and between ECEF and longitude/latitude with pyproj's
+  EPSG:4978/4979 conversion: the ground map, the 3D BAG (`ecef_to_world` is its inverse) and
+  the BAG panden line up with each other exactly, and with PROJ's own transformation (by way
+  of the Engineering CRS's base, as `with_geog` goes) to under a centimetre over Sixty5
+  (`test_the_viewers_world_is_proj_to_a_centimetre`). A model must sit near its CRS's origin:
+  a frame in EPSG:7415 would be linearized at RD's origin, off the map.
+- `osm_ground_map`'s affine from longitude and latitude to the world is good to 11 mm at the
+  corners of Sixty5's 500 m map: the meridians converge. The front end draws OSM's raster tiles
+  into a canvas itself (`map-tiles.ts`: the zoom whose tiles come closest to the image's
+  resolution, up to 19), where geospeckle rendered a MapLibre map off-screen: no MapLibre and
+  no second WebGL context.
+- The map and the tiles are on the PROPS layer and added to the scene directly, as the
+  markers are, so `object_count` and `scene_bbox` leave them out. `GroundInView` pushes the
+  camera's far plane out to the map's farthest corner every frame; `ContextTiles` updates the
+  tiles for the camera every frame and hides the features of each tile as it arrives
+  (`hideFeaturesWithin`: more than half of a feature's vertices in a polygon; three.js 0.140
+  returns quantized positions as stored, so they are scaled first). `surroundings` reports
+  the map's plane, the tile contents loaded and the features hidden in them, 250 ms after the
+  last change.
+- PDOK's 3D BAG is a tree of external tilesets; `site_3d_tiles` walks it along the tiles that
+  overlap the area (3d-tiles-renderer 0.3.46 would fetch every child of a tile without content,
+  half the country's tilesets) and gives a one-level tileset of the finest tiles there.
+- `bag_panden_under` keeps a pand with more than half of its area under the footprint;
+  `pdok_3d_buildings` grows the `hide_within` polygons by `hide_margin` (0.5 m) so that a
+  building's vertices on its pand's outline count as within. Without the NSGI grids the
+  model sits within about a metre of PDOK's data (bimpolars warns).
 
 ## Viewer facts (2.31.14)
 
@@ -86,6 +136,17 @@ takes 45 s): `read_speckle` with the bundle draws 5568 rows (every row with a me
 -107.4743..211.5911, y -53.3989..98.3638, z -1.8288..12.4854 m. `bim_objects` takes 4 to 6 s
 on either (specklepy hashes 17,600 objects, 36 to 45 MB of JSON).
 
-esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. The two e2e files run one
-after the other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium.
+Sixty5's structural model (`tests/test_geo.py`, `e2e/geo.test.mjs`): read_ifc takes 14 s;
+1363 rows drawn (with a mesh, less 1284 openings), bbox x -2.24..33.585, y -0.001..55.69, z
+-30.4..56.64 m in the site grid; the plan extent of all rows' `bbox` turned by -50.36 degrees
+gives `osm_ground_map` bounds 5.457095..5.464129 E, 51.444345..51.448716 N with the 150 m
+margin, a 2048 x 2042 image. The site origin is at 5.460153 E, 51.446476 N, ellipsoidal
+height 18.625 m (NAP passed off as it without the grids).
+
+esm.sh, api.pdok.nl and tile.openstreetmap.org are blocked from the cloud containers: `npm run
+e2e` serves esm.sh from a mirror bundled out of `node_modules` (`e2e/esm-mirror.mjs`), and the
+geo test's offline run answers PDOK and OSM itself (`e2e/offline-pdok/` goes on the kernel's
+PYTHONPATH: its `sitecustomize.py` patches `urllib.request.urlopen` for api.pdok.nl), so they
+run there as well; the live run and `tests/test_geo.py`'s `pdok` tests skip there and run on
+GitHub Actions. The e2e files run one after the other (`--test-concurrency=1`): each starts
+marimo and a SwiftShader Chromium.

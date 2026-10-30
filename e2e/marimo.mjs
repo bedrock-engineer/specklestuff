@@ -37,10 +37,14 @@ async function waitForServer(url, timeout) {
  * Serves a notebook with `marimo run` and opens it in headless Chromium (WebGL by SwiftShader).
  *
  * @param {string} notebook the notebook's path from the repository root
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] more environment for marimo and its kernel
+ * @param {(context: import("playwright").BrowserContext) => Promise<void>} [options.route]
+ *   routes the browser's requests before it opens the notebook, as esm.sh's are
  * @returns {Promise<{page: import("playwright").Page, errors: string[], close: () => Promise<void>}>}
  *   the page, the console errors and page errors it logs, and what stops both
  */
-export async function openNotebook(notebook) {
+export async function openNotebook(notebook, { env = {}, route } = {}) {
   await buildMirror();
   const port = await freePort();
   const marimo = spawn(
@@ -56,7 +60,7 @@ export async function openNotebook(notebook) {
       "--port",
       `${port}`,
     ],
-    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] },
+    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"], env: { ...process.env, ...env } },
   );
   let browser;
   async function close() {
@@ -69,6 +73,7 @@ export async function openNotebook(notebook) {
     browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
     const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
     await routeEsmSh(context);
+    await route?.(context);
     const page = await context.newPage();
     const errors = [];
     page.on("console", (message) => {

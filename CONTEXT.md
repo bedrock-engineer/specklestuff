@@ -31,3 +31,21 @@ where an instance places it.
 An `InstanceProxy`: a placement of a definition with a 4x4 `transform`. Its applicationId is
 the element's, so selecting an instance selects the element.
 _Avoid_: block reference, occurrence
+
+**World**:
+The viewer's coordinates: the models' own in metres, whatever their units. Markers, the ground
+map and the tilesets' `ecef_to_world` and `hide_within` are in it.
+_Avoid_: scene coordinates, site metres (the site's CRS may be in millimetres)
+
+**Surroundings**:
+What `GeoSpeckleViewer` shows around the models that is not an element: the ground map (an
+OpenStreetMap snapshot on a plane) and tilesets (3D Tiles such as PDOK's 3D BAG). A click
+does not select them and `object_count` and `scene_bbox` leave them out.
+_Avoid_: context, basemap
+
+**Pand**:
+A building in the BAG, the Dutch register of buildings, by its `identificatie`. The panden
+under a model are the buildings it takes the place of: `hide_within` leaves them out of the
+3D BAG.
+_Avoid_: building footprint (the model's own `footprint` column)
+

@@ -7,7 +7,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "ENTRY=js/speckle-viewer.ts vite build --watch",
+    "dev": "ENTRY=${ENTRY:-js/speckle-viewer.ts} vite build --watch",
     "typecheck": "tsc",
     "test": "vitest run",
     "lint": "oxlint",
