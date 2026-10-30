@@ -30,7 +30,7 @@ export default {
     const contextTiles = viewer.createExtension(ContextTiles);
 
     let groundBounds: number[] = [];
-    let tilesReport: TilesReport = { tiles: 0, hiddenFeatures: 0 };
+    let tilesReport: TilesReport = { tiles: 0, hiddenFeatures: 0, hiddenHeights: [] };
     let reporting: ReturnType<typeof setTimeout> | undefined;
     function report() {
       clearTimeout(reporting);
@@ -39,6 +39,7 @@ export default {
           ground_map: groundBounds,
           tiles: tilesReport.tiles,
           hidden_features: tilesReport.hiddenFeatures,
+          hidden_heights: tilesReport.hiddenHeights,
         });
         model.save_changes();
       }, REPORT_DELAY_MS);

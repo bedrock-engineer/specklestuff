@@ -81,7 +81,7 @@ viewer = mo.ui.anywidget(GeoSpeckleViewer(site, ground_map=ground_map, tilesets=
 viewer
 
 # in another cell, once the surroundings are in
-viewer.widget.surroundings  # {"ground_map": [xmin, ymin, xmax, ymax], "tiles": ..., "hidden_features": ...}
+viewer.widget.surroundings  # {"ground_map": [...], "tiles": 2, "hidden_features": 1, ...}
 ```
 
 `examples/sixty5_geo.py` is that notebook, with the Sixty5 structural model.
@@ -151,8 +151,9 @@ the notebook's Python api.pdok.nl.
     the last for its three.js.
   - `surroundings`, set by the viewer: a dict with `ground_map` (`[xmin, ymin, xmax, ymax]`
     of the map's plane in metres, `[]` until it is drawn), `tiles` (the tile contents
-    loaded) and `hidden_features` (the features of those tiles that `hide_within` leaves
-    out).
+    loaded), `hidden_features` (the features of those tiles that `hide_within` leaves out)
+    and `hidden_heights` (`[zmin, zmax]` of those features in metres, `[]` for none: the
+    building the model takes the place of should stand where the model does).
 - `specklewidgets.geo` (the `[geo]` extra), for a BimDataFrame in a georeferenced CRS such as
   the Engineering CRS of `bimpolars.geobim.derived_engineering_crs`. The viewer's world goes to
   ECEF and back through one 4x4, `bimpolars.geobim.linearized_site_to_ecef`, for the map, the

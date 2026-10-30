@@ -34,6 +34,8 @@ SIXTY5_ORIGIN = (160071.5, 384156.5, 18.625)
 SIXTY5_ROTATION = math.degrees(math.atan2(-0.7700680491484481, 0.6379617540893054))
 SIXTY5_LONLAT = (5.46015, 51.44648)
 """The site origin to 0.00001 degrees, which is under a metre."""
+SIXTY5_PANDEN = ["0772100001025175"]
+"""The BAG panden mostly under the slabs and footings (``identificatie``): Sixty5's own."""
 NLGEO2018_AT_SIXTY5 = 43.919
 """The quasi-geoid height at the site origin (NLGEO2018): its ellipsoidal less its NAP height."""
 
@@ -419,8 +421,10 @@ def sixty5_panden(pdok, site) -> dict[str, Any]:
 
 
 def test_sixty5_stands_on_its_bag_pand(site, sixty5_panden):
-    print("BAG panden under Sixty5:", {key: pand.bounds for key, pand in sixty5_panden.items()})
-    assert len(sixty5_panden) >= 1
+    # The panden are picked for lying under the model, so the id is what tells that the
+    # model stands where it should
+    bounds = {key: pand.bounds for key, pand in sixty5_panden.items()}
+    assert list(sixty5_panden) == SIXTY5_PANDEN, f"BAG panden under Sixty5: {bounds}"
 
 
 @pytest.fixture(scope="module")
@@ -430,22 +434,11 @@ def sixty5_3d_bag(site, sixty5_panden) -> Any:
 
 def test_the_3d_bag_has_tiles_at_sixty5(sixty5_3d_bag, sixty5_panden):
     leaves = sixty5_3d_bag["tileset"]["root"]["children"]
-    print(f"3D BAG at Sixty5: {len(leaves)} tiles,", [leaf["content"]["uri"] for leaf in leaves])
     assert len(leaves) >= 1
     west, south, east, north = sixty5_3d_bag["tileset"]["root"]["boundingVolume"]["region"][:4]
     lon, lat = (math.radians(value) for value in SIXTY5_LONLAT)
     assert west < lon < east and south < lat < north
     assert len(sixty5_3d_bag["hide_within"]) == len(sixty5_panden)
-
-
-def test_the_3d_bag_stands_on_the_ground_map(sixty5_3d_bag, world, grids):
-    # The lowest of the tiles' regions is the lowest ground under a building there, which
-    # around Strijp-S is within a few metres of the site origin's: the map's plane
-    leaves = sixty5_3d_bag["tileset"]["root"]["children"]
-    lowest = [leaf["boundingVolume"]["region"][4] for leaf in leaves]
-    assert min(lowest) == pytest.approx(world.height(0.0), abs=10), (
-        f"the tiles' lowest heights {lowest}, the map's {world.height(0.0)}"
-    )
 
 
 # The widget
@@ -456,4 +449,9 @@ def test_geo_speckle_viewer_takes_the_surroundings(site, ground_map):
     viewer = GeoSpeckleViewer(ground_map=ground_map, tilesets=(tileset,))
     assert viewer.ground_map == ground_map
     assert viewer.tilesets == [tileset]
-    assert viewer.surroundings == {"ground_map": [], "tiles": 0, "hidden_features": 0}
+    assert viewer.surroundings == {
+        "ground_map": [],
+        "tiles": 0,
+        "hidden_features": 0,
+        "hidden_heights": [],
+    }

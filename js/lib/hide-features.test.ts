@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { denormalizeScale, hideFeaturesWithin, insidePolygon } from "./hide-features";
+import { denormalizeScale, hideFeaturesWithin, insidePolygon, spanHeights } from "./hide-features";
 import type { Rings } from "./types";
 
 const SQUARE: Rings = [
@@ -72,7 +72,7 @@ describe("hideFeaturesWithin", () => {
   it("drops the triangles of the features mostly inside a polygon", () => {
     const geometry = twoFeatures();
     const hidden = hideFeaturesWithin(geometry, new THREE.Matrix4(), [SQUARE]);
-    expect(hidden).toEqual(new Set([0]));
+    expect(hidden.ids).toEqual(new Set([0]));
     expect(Array.from(geometry.index!.array)).toEqual([4, 5, 6, 4, 6, 7]);
   });
 
@@ -81,7 +81,7 @@ describe("hideFeaturesWithin", () => {
     const hidden = hideFeaturesWithin(geometry, new THREE.Matrix4().makeTranslation(-20, 0, 0), [
       SQUARE,
     ]);
-    expect(hidden).toEqual(new Set([1]));
+    expect(hidden.ids).toEqual(new Set([1]));
     expect(Array.from(geometry.index!.array)).toEqual([0, 1, 2, 0, 2, 3]);
   });
 
@@ -96,7 +96,7 @@ describe("hideFeaturesWithin", () => {
         [2, 10],
       ],
     ];
-    expect(hideFeaturesWithin(geometry, new THREE.Matrix4(), [half])).toEqual(new Set());
+    expect(hideFeaturesWithin(geometry, new THREE.Matrix4(), [half]).ids).toEqual(new Set());
     expect(geometry.index!.count).toBe(12);
   });
 
@@ -110,13 +110,39 @@ describe("hideFeaturesWithin", () => {
     const hidden = hideFeaturesWithin(geometry, new THREE.Matrix4().makeScale(scale, scale, 1), [
       SQUARE,
     ]);
-    expect(hidden).toEqual(new Set([0]));
+    expect(hidden.ids).toEqual(new Set([0]));
+  });
+
+  it("reports the heights the dropped features span in the world", () => {
+    // Feature 0 from 0 to 4 high, feature 1 at 10, all lifted by 1
+    // prettier-ignore
+    const positions = new THREE.BufferAttribute(new Float32Array([
+      1, 1, 0, 3, 1, 0, 3, 3, 4, 1, 3, 4,
+      21, 1, 10, 23, 1, 10, 23, 3, 10, 21, 3, 10,
+    ]), 3);
+    const lift = new THREE.Matrix4().makeTranslation(0, 0, 1);
+    expect(hideFeaturesWithin(twoFeatures(positions), lift, [SQUARE]).heights).toEqual([1, 5]);
   });
 
   it("leaves a mesh without feature ids or polygons as it is", () => {
     const geometry = twoFeatures();
     geometry.deleteAttribute("_feature_id_0");
-    expect(hideFeaturesWithin(geometry, new THREE.Matrix4(), [SQUARE])).toEqual(new Set());
-    expect(hideFeaturesWithin(twoFeatures(), new THREE.Matrix4(), [])).toEqual(new Set());
+    expect(hideFeaturesWithin(geometry, new THREE.Matrix4(), [SQUARE])).toEqual({
+      ids: new Set(),
+      heights: [],
+    });
+    expect(hideFeaturesWithin(twoFeatures(), new THREE.Matrix4(), [])).toEqual({
+      ids: new Set(),
+      heights: [],
+    });
+  });
+});
+
+describe("spanHeights", () => {
+  it("spans both ranges, where [] spans nothing", () => {
+    expect(spanHeights([1, 5], [-2, 3])).toEqual([-2, 5]);
+    expect(spanHeights([], [1, 2])).toEqual([1, 2]);
+    expect(spanHeights([1, 2], [])).toEqual([1, 2]);
+    expect(spanHeights([], [])).toEqual([]);
   });
 });

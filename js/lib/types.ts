@@ -73,6 +73,8 @@ export interface Surroundings {
   tiles: number;
   /** Features of the loaded tiles left out by hide_within */
   hidden_features: number;
+  /** [zmin, zmax] of those features in the world, [] for none: where the tiles stand */
+  hidden_heights: number[];
 }
 
 /** GeoSpeckleViewer's traits: SpeckleViewer's and its surroundings */

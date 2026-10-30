@@ -66,18 +66,25 @@ export function denormalizeScale(attribute: THREE.BufferAttribute): number {
   return 1;
 }
 
+/** The features hideFeaturesWithin dropped, and the heights their vertices span */
+export interface HiddenFeatures {
+  ids: Set<number>;
+  /** [zmin, zmax] of the dropped features' vertices in the world, [] for none */
+  heights: number[];
+}
+
 /**
  * Drops the triangles of every feature (an EXT_mesh_features id) with more than half of its
  * vertices inside one of the polygons, which are in the world: matrix takes the mesh there.
  *
- * @returns the ids of the features dropped
+ * @returns the ids of the features dropped, and the heights they span in the world
  */
 export function hideFeaturesWithin(
   geometry: THREE.BufferGeometry,
   matrix: THREE.Matrix4,
   polygons: Rings[],
-): Set<number> {
-  const hidden = new Set<number>();
+): HiddenFeatures {
+  const hidden: HiddenFeatures = { ids: new Set(), heights: [] };
   const featureIds = geometry.getAttribute(FEATURE_ID) as THREE.BufferAttribute | undefined;
   if (!featureIds || !geometry.index || polygons.length === 0) {
     return hidden;
@@ -86,13 +93,13 @@ export function hideFeaturesWithin(
   const position = geometry.getAttribute("position") as THREE.BufferAttribute;
   const scale = denormalizeScale(position);
   const vertex = new THREE.Vector3();
-  // Feature id: [vertices inside, vertices]
-  const counts = new Map<number, [number, number]>();
+  // Feature id: [vertices inside, vertices, zmin, zmax]
+  const counts = new Map<number, [number, number, number, number]>();
   for (let i = 0; i < position.count; i++) {
     const id = featureIds.getX(i);
     let count = counts.get(id);
     if (!count) {
-      count = [0, 0];
+      count = [0, 0, Infinity, -Infinity];
       counts.set(id, count);
     }
     vertex.fromBufferAttribute(position, i).multiplyScalar(scale).applyMatrix4(matrix);
@@ -100,19 +107,33 @@ export function hideFeaturesWithin(
       count[0]++;
     }
     count[1]++;
+    count[2] = Math.min(count[2], vertex.z);
+    count[3] = Math.max(count[3], vertex.z);
   }
-  for (const [id, [within, total]] of counts) {
+  for (const [id, [within, total, zmin, zmax]] of counts) {
     if (within > total / 2) {
-      hidden.add(id);
+      hidden.ids.add(id);
+      hidden.heights = spanHeights(hidden.heights, [zmin, zmax]);
     }
   }
-  if (hidden.size > 0) {
+  if (hidden.ids.size > 0) {
     // GLTFLoader's indices: one of these, by the vertex count
     const index = geometry.index.array as Uint8Array | Uint16Array | Uint32Array;
     const kept = index.filter(
-      (_: number, i: number) => !hidden.has(featureIds.getX(index[i - (i % 3)])),
+      (_: number, i: number) => !hidden.ids.has(featureIds.getX(index[i - (i % 3)])),
     );
     geometry.setIndex(new THREE.BufferAttribute(kept, 1));
   }
   return hidden;
+}
+
+/** The [zmin, zmax] that spans both, where [] spans nothing */
+export function spanHeights(a: number[], b: number[]): number[] {
+  if (a.length === 0) {
+    return b;
+  }
+  if (b.length === 0) {
+    return a;
+  }
+  return [Math.min(a[0], b[0]), Math.max(a[1], b[1])];
 }

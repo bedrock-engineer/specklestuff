@@ -85,10 +85,11 @@ class GeoSpeckleViewer(SpeckleViewer):
     # "attribution": credit line, "hide_within": [polygon as rings of [x, y] in metres]}]
     tilesets = traitlets.List[dict[str, Any]]([]).tag(sync=True)
     # Set by the front end: the ground map's plane, [xmin, ymin, xmax, ymax] in metres ([]
-    # until it is drawn); the tile contents loaded; and how many features of those tiles
-    # hide_within leaves out
+    # until it is drawn); the tile contents loaded; how many features of those tiles
+    # hide_within leaves out; and the heights those features span, [zmin, zmax] in metres ([]
+    # for none), which tell where the tiles stand against the model
     surroundings = traitlets.Dict(
-        {"ground_map": [], "tiles": 0, "hidden_features": 0},
+        {"ground_map": [], "tiles": 0, "hidden_features": 0, "hidden_heights": []},
     ).tag(sync=True)
 
     def __init__(

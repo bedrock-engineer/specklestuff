@@ -26,6 +26,12 @@ const DRAWN_ROWS = 1363;
 const FRAME_BBOX = [-2.24, -0.001, -30.4, 33.585, 55.69, 56.64];
 const BBOX_TOLERANCE = 1e-4;
 
+// What tests/test_geo.py reaches with PDOK: the BAG pand under the slabs and footings
+const SIXTY5_PANDEN = ["0772100001025175"];
+// How far the bottom of the 3D BAG's building under the model may lie from the map, at z = 0
+// (the site origin: AHN4's ground there), in metres. Without the NSGI grids it lies 44 m off
+const GROUND_TOLERANCE = 3;
+
 const PDOK = "https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items?f=json&limit=1";
 const OSM = "https://tile.openstreetmap.org/0/0/0.png";
 
@@ -98,6 +104,12 @@ async function checkSixty5InItsSurroundings({ page, errors, waitFor }, name) {
     `the BAG panden ${JSON.stringify(seen.pandenBbox)} overlap the scene ${JSON.stringify(seen.sceneBbox)}`,
   );
   assert.ok(seen.surroundings.hidden_features >= 1, "the 3D BAG's Sixty5 is left out");
+  // ... and stood on the map, as the model does
+  const [bottom] = seen.surroundings.hidden_heights;
+  assert.ok(
+    Math.abs(bottom) < GROUND_TOLERANCE,
+    `the 3D BAG's Sixty5 stands at z = ${bottom} m, the map and the model at 0`,
+  );
 
   // SwiftShader takes its time to draw the model, the map and the tiles
   await mkdir(OUT, { recursive: true });
@@ -136,6 +148,10 @@ describe("offline: generated map tiles, 3D BAG and BAG", () => {
     assert.deepEqual(seen.panden, ["0772100000e2e000"]);
     assert.equal(seen.leaves, 1);
     assert.deepEqual(seen.surroundings, { ...seen.surroundings, tiles: 1, hidden_features: 1 });
+    // The box on the pand stands from 0 to 20 m (BOXES), at the site origin's ellipsoidal height
+    seen.surroundings.hidden_heights.forEach((z, i) =>
+      assert.ok(Math.abs(z - [0, 20][i]) < 0.1, `the box on the pand spans ${z} m`),
+    );
     assert.ok(served.includes(TILE_URL));
     assert.ok(served.filter((url) => url.includes("openstreetmap")).length > 4);
   });
@@ -158,7 +174,8 @@ describe(
     });
 
     test("Sixty5 stands on its BAG pand, in the 3D BAG", { timeout: 15 * MINUTE }, async () => {
-      await checkSixty5InItsSurroundings(notebook, "live");
+      const seen = await checkSixty5InItsSurroundings(notebook, "live");
+      assert.deepEqual(seen.panden, SIXTY5_PANDEN);
     });
   },
 );

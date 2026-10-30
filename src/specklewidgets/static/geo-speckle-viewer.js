@@ -51,7 +51,7 @@ function denormalizeScale(attribute) {
   return 1;
 }
 function hideFeaturesWithin(geometry, matrix, polygons) {
-  const hidden = /* @__PURE__ */ new Set();
+  const hidden = { ids: /* @__PURE__ */ new Set(), heights: [] };
   const featureIds = geometry.getAttribute(FEATURE_ID);
   if (!featureIds || !geometry.index || polygons.length === 0) {
     return hidden;
@@ -65,7 +65,7 @@ function hideFeaturesWithin(geometry, matrix, polygons) {
     const id = featureIds.getX(i);
     let count = counts.get(id);
     if (!count) {
-      count = [0, 0];
+      count = [0, 0, Infinity, -Infinity];
       counts.set(id, count);
     }
     vertex.fromBufferAttribute(position, i).multiplyScalar(scale).applyMatrix4(matrix);
@@ -73,33 +73,47 @@ function hideFeaturesWithin(geometry, matrix, polygons) {
       count[0]++;
     }
     count[1]++;
+    count[2] = Math.min(count[2], vertex.z);
+    count[3] = Math.max(count[3], vertex.z);
   }
-  for (const [id, [within, total]] of counts) {
+  for (const [id, [within, total, zmin, zmax]] of counts) {
     if (within > total / 2) {
-      hidden.add(id);
+      hidden.ids.add(id);
+      hidden.heights = spanHeights(hidden.heights, [zmin, zmax]);
     }
   }
-  if (hidden.size > 0) {
+  if (hidden.ids.size > 0) {
     const index = geometry.index.array;
     const kept = index.filter(
-      (_, i) => !hidden.has(featureIds.getX(index[i - i % 3]))
+      (_, i) => !hidden.ids.has(featureIds.getX(index[i - i % 3]))
     );
     geometry.setIndex(new THREE.BufferAttribute(kept, 1));
   }
   return hidden;
 }
+function spanHeights(a, b) {
+  if (a.length === 0) {
+    return b;
+  }
+  if (b.length === 0) {
+    return a;
+  }
+  return [Math.min(a[0], b[0]), Math.max(a[1], b[1])];
+}
 class ContextTiles extends Extension {
   tilesets = [];
-  /** Hidden features per loaded tile content */
+  /** The features hidden in each loaded tile content, and the heights they span */
   loaded = /* @__PURE__ */ new Map();
   onChange = () => {
   };
   report() {
     let hiddenFeatures = 0;
-    for (const count of this.loaded.values()) {
-      hiddenFeatures += count;
+    let hiddenHeights = [];
+    for (const { hidden, heights } of this.loaded.values()) {
+      hiddenFeatures += hidden;
+      hiddenHeights = spanHeights(hiddenHeights, heights);
     }
-    return { tiles: this.loaded.size, hiddenFeatures };
+    return { tiles: this.loaded.size, hiddenFeatures, hiddenHeights };
   }
   setTilesets(tilesets) {
     this.clear();
@@ -116,18 +130,21 @@ class ContextTiles extends Extension {
       tiles.group.matrix.fromArray(ecef_to_world);
       tiles.addEventListener("load-model", ({ scene: content, tile }) => {
         const hidden = /* @__PURE__ */ new Set();
+        let heights = [];
         content.traverse((object) => {
           object.layers.set(ObjectLayers.PROPS);
           const mesh = object;
           if (mesh.isMesh && hide_within.length) {
             object.updateWorldMatrix(true, false);
             const toWorld = tiles.group.matrix.clone().multiply(object.matrixWorld);
-            for (const id of hideFeaturesWithin(mesh.geometry, toWorld, hide_within)) {
+            const dropped = hideFeaturesWithin(mesh.geometry, toWorld, hide_within);
+            for (const id of dropped.ids) {
               hidden.add(id);
             }
+            heights = spanHeights(heights, dropped.heights);
           }
         });
-        this.loaded.set(tile, hidden.size);
+        this.loaded.set(tile, { hidden: hidden.size, heights });
         this.onChange(this.report());
         this.viewer.requestRender();
       });
@@ -528,7 +545,7 @@ const geoSpeckleViewer = {
     const groundInView = viewer.createExtension(GroundInView);
     const contextTiles = viewer.createExtension(ContextTiles);
     let groundBounds = [];
-    let tilesReport = { tiles: 0, hiddenFeatures: 0 };
+    let tilesReport = { tiles: 0, hiddenFeatures: 0, hiddenHeights: [] };
     let reporting;
     function report() {
       clearTimeout(reporting);
@@ -536,7 +553,8 @@ const geoSpeckleViewer = {
         model.set("surroundings", {
           ground_map: groundBounds,
           tiles: tilesReport.tiles,
-          hidden_features: tilesReport.hiddenFeatures
+          hidden_features: tilesReport.hiddenFeatures,
+          hidden_heights: tilesReport.hiddenHeights
         });
         model.save_changes();
       }, REPORT_DELAY_MS);

@@ -43,8 +43,7 @@ jobs:
           key: bimpolars-data-2026-10-30-arch-ifc
       # PROJ fetches the NSGI grids from cdn.proj.org, so that the tests of the heights of
       # PDOK's 3D Tiles run (tests/test_geo.py's grids fixture)
-      # -rP for the live numbers of the pdok tests, until they are pinned
-      - run: uv run pytest -rs -rP
+      - run: uv run pytest -rs
         env:
           PROJ_NETWORK: "ON"
 

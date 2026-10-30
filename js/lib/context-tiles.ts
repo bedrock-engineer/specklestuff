@@ -3,13 +3,15 @@ import { TilesRenderer } from "3d-tiles-renderer";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { hideFeaturesWithin } from "./hide-features";
+import { hideFeaturesWithin, spanHeights } from "./hide-features";
 import type { Tileset } from "./types";
 
 /** What the tiles of every tileset show, for the surroundings trait */
 export interface TilesReport {
   tiles: number;
   hiddenFeatures: number;
+  /** [zmin, zmax] of the hidden features in the world, [] for none */
+  hiddenHeights: number[];
 }
 
 /**
@@ -22,16 +24,18 @@ export interface TilesReport {
  */
 export class ContextTiles extends Extension {
   private tilesets: { tiles: TilesRenderer; url: string }[] = [];
-  /** Hidden features per loaded tile content */
-  private loaded = new Map<object, number>();
+  /** The features hidden in each loaded tile content, and the heights they span */
+  private loaded = new Map<object, { hidden: number; heights: number[] }>();
   onChange: (report: TilesReport) => void = () => {};
 
   report(): TilesReport {
     let hiddenFeatures = 0;
-    for (const count of this.loaded.values()) {
-      hiddenFeatures += count;
+    let hiddenHeights: number[] = [];
+    for (const { hidden, heights } of this.loaded.values()) {
+      hiddenFeatures += hidden;
+      hiddenHeights = spanHeights(hiddenHeights, heights);
     }
-    return { tiles: this.loaded.size, hiddenFeatures };
+    return { tiles: this.loaded.size, hiddenFeatures, hiddenHeights };
   }
 
   setTilesets(tilesets: Tileset[]): void {
@@ -50,6 +54,7 @@ export class ContextTiles extends Extension {
       tiles.group.matrix.fromArray(ecef_to_world);
       tiles.addEventListener("load-model", ({ scene: content, tile }) => {
         const hidden = new Set<number>();
+        let heights: number[] = [];
         content.traverse((object) => {
           object.layers.set(ObjectLayers.PROPS);
           const mesh = object as THREE.Mesh;
@@ -57,12 +62,14 @@ export class ContextTiles extends Extension {
             // The tile's content is not under tiles.group yet
             object.updateWorldMatrix(true, false);
             const toWorld = tiles.group.matrix.clone().multiply(object.matrixWorld);
-            for (const id of hideFeaturesWithin(mesh.geometry, toWorld, hide_within)) {
+            const dropped = hideFeaturesWithin(mesh.geometry, toWorld, hide_within);
+            for (const id of dropped.ids) {
               hidden.add(id);
             }
+            heights = spanHeights(heights, dropped.heights);
           }
         });
-        this.loaded.set(tile, hidden.size);
+        this.loaded.set(tile, { hidden: hidden.size, heights });
         this.onChange(this.report());
         this.viewer.requestRender();
       });
