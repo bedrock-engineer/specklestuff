@@ -41,7 +41,11 @@ jobs:
           # beyond the Speckle objects: bump it with either, since a cache key is never
           # overwritten and fetch downloads only what is missing
           key: bimpolars-data-2026-10-30-arch-ifc
+      # PROJ fetches the NSGI grids from cdn.proj.org, so that the tests of the heights of
+      # PDOK's 3D Tiles run (tests/test_geo.py's grids fixture)
       - run: just check-py
+        env:
+          PROJ_NETWORK: "ON"
 
   e2e:
     runs-on: ubuntu-latest
@@ -66,7 +70,8 @@ jobs:
           path: ~/.cache/bimpolars
           key: bimpolars-data-2026-10-30-arch-ifc
       - run: just e2e
-      # The canvas, or the page when the viewer never reported
+      # The canvases (the live surroundings among them), or the page when a viewer never
+      # reported
       - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:

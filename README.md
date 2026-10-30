@@ -54,6 +54,38 @@ bdf.frame.filter(pl.col("id").is_in(ids))
 `examples/rvt_arch_bimdataframe.py` shows the Revit Advanced Sample's architectural model read
 both ways, `read_speckle` and `read_ifc`, side by side.
 
+`GeoSpeckleViewer` adds the model's surroundings: an OpenStreetMap ground map under it and 3D
+Tiles around it, such as the buildings of PDOK's 3D Basisvoorziening (the 3D BAG), without the
+buildings the model takes the place of. `specklewidgets.geo` builds them for a BimDataFrame
+that bimpolars has placed on earth:
+
+```python
+import pyproj
+from bimpolars import simple_features
+from bimpolars.crs import linear_unit
+from bimpolars.geobim import derived_engineering_crs, set_crs
+from specklewidgets import GeoSpeckleViewer
+from specklewidgets.geo import bag_panden_under, osm_ground_map, pdok_3d_buildings
+
+# PDOK's 3D Tiles are at ellipsoidal heights, which take the NSGI grids: PROJ fetches them
+pyproj.network.set_network_enabled(True)
+bdf = read_ifc(data.fetch("sixty5_O-S1-CON-structural-engineering.ifc"))
+crs = derived_engineering_crs(
+    "EPSG:7415", 160_071.5, 384_156.5, 18.625, -50.36, unit=linear_unit(bdf.crs), name="Sixty5"
+)
+site = set_crs(bdf, crs)  # Sixty5 at Strijp-S, Eindhoven
+panden = bag_panden_under(simple_features(site))  # the BAG panden under the model
+ground_map = osm_ground_map(site)  # 150 m of map around the model
+tilesets = [pdok_3d_buildings(site, ground_map["bounds"], hide_within=panden.values())]
+viewer = mo.ui.anywidget(GeoSpeckleViewer(site, ground_map=ground_map, tilesets=tilesets))
+viewer
+
+# in another cell, once the surroundings are in
+viewer.widget.surroundings  # {"ground_map": [...], "tiles": 2, "hidden_features": 1, ...}
+```
+
+`examples/sixty5_geo.py` is that notebook, with the Sixty5 structural model.
+
 `specklewidgets.server` receives a version from a Speckle server, as its bundle and its v3
 objects, and sends a BimDataFrame as a new version, signed in with this machine's Speckle
 account or a personal access token:
@@ -78,13 +110,17 @@ version_id = send(client, bdf, "<project id>", "<model id>", message="from a not
 uv add "specklewidgets @ git+https://github.com/bedrock-engineer/specklestuff"
 ```
 
-The package depends on anywidget and traitlets only. The built widget is in the wheel, with
+The package depends on anywidget and traitlets only. The built widgets are in the wheel, with
 `@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the wheel), so the notebook needs
 no network access; their licenses are in `specklewidgets/static/speckle-viewer.LICENSES.txt`.
-A BimDataFrame needs the extra `specklewidgets[bim]` (specklepy, which turns its rows into
-Speckle objects) and bimpolars, which any BimDataFrame comes with. Receiving and sending need
-the extra `specklewidgets[server]` (specklepy with its bundle reader) and `bimpolars[speckle]`,
-which projects a bundle-only version to v3 objects.
+GeoSpeckleViewer's bundle adds 3d-tiles-renderer (2.9 MB, 0.8 MB of the wheel; licenses in
+`geo-speckle-viewer.LICENSES.txt`). A BimDataFrame needs the extra `specklewidgets[bim]`
+(specklepy, which turns its rows into Speckle objects) and bimpolars, which any BimDataFrame
+comes with. `specklewidgets.geo` needs the extra `specklewidgets[geo]`: pyproj, which is what
+`bimpolars[geobim]` adds to bimpolars. The ground map's tiles come from tile.openstreetmap.org
+and the 3D BAG from api.pdok.nl, so the browser needs to reach both, and the notebook's Python
+api.pdok.nl. Receiving and sending need the extra `specklewidgets[server]` (specklepy with its
+bundle reader) and `bimpolars[speckle]`, which projects a bundle-only version to v3 objects.
 
 ## API
 
@@ -117,6 +153,53 @@ which projects a bundle-only version to v3 objects.
   writes `def-geo-<n>`), where the viewer would stop looking for members halfway; and it lists
   each object once in a collection, where the viewer would leave a member's extra copies at
   the definition's origin and draw none of its instances. Ids are otherwise left alone.
+- `GeoSpeckleViewer(models=None, *, ground_map=None, tilesets=None, **kwargs)`: a
+  `SpeckleViewer` (`color` and `markers` included) with the model's surroundings, in the
+  viewer's world (the models' coordinates in metres). The map and the tiles are not elements:
+  `object_count` and `scene_bbox` leave them out, and a click does not select them. Its
+  traits, besides `SpeckleViewer`'s:
+  - `ground_map` (a `GroundMap`, `{}` for none): OpenStreetMap's tiles over `bounds`
+    (`[west, south, east, north]` in degrees), drawn into a `width` x `height` image north up
+    and laid on a plane at height `z` with `opacity`; its corners go to the world through
+    `lnglat_to_world`, an affine `[a, b, c, d, e, f]` with `x = a lon + b lat + c` and
+    `y = d lon + e lat + f`.
+  - `tilesets` (a list of `Tileset`): 3D Tiles, each a dict with `tileset` (the tileset JSON
+    with absolute content URLs), `ecef_to_world` (a column-major 4x4 from ECEF to the
+    world), `attribution` (a credit line) and `hide_within` (polygons as rings of `[x, y]`).
+    A feature of the tiles (an `EXT_mesh_features` id: a building of the 3D BAG) with more
+    than half of its vertices inside one of the `hide_within` polygons is left out. Tiles in
+    glTF need `EXT_meshopt_compression` at most; the viewer runs 3d-tiles-renderer 0.3.46,
+    the last for its three.js.
+  - `surroundings`, set by the viewer: a dict with `ground_map` (`[xmin, ymin, xmax, ymax]`
+    of the map's plane in metres, `[]` until it is drawn), `tiles` (the tile contents
+    loaded), `hidden_features` (the features of those tiles that `hide_within` leaves out)
+    and `hidden_heights` (`[zmin, zmax]` of those features in metres, `[]` for none: the
+    building the model takes the place of should stand where the model does).
+- `specklewidgets.geo` (the `[geo]` extra), for a BimDataFrame in a georeferenced CRS such as
+  the Engineering CRS of `bimpolars.geobim.derived_engineering_crs`. The viewer's world goes to
+  ECEF and back through one 4x4, `bimpolars.geobim.linearized_site_to_ecef`, for the map, the
+  tiles and the panden alike, so they line up with each other exactly and with PROJ's own
+  transformation to a centimetre around a site, and to its own accuracy. In the Netherlands
+  that takes the NSGI grids, which PROJ fetches from cdn.proj.org with its network on
+  (`pyproj.network.set_network_enabled(True)` or `PROJ_NETWORK=ON`). Without them PROJ falls
+  back to a Helmert transformation, good to about a metre in plan, that passes NAP heights
+  off as ellipsoidal ones (bimpolars warns): PDOK's 3D BAG, at ellipsoidal heights, then
+  floats some 44 m above the map and the model.
+  - `osm_ground_map(bdf, *, margin=150.0, width=2048, z=0.0, opacity=0.85)`: the `ground_map`
+    over the model's plan extent (its `bbox` column) and `margin` metres around it; `z` is the
+    map's height in metres in the model's CRS (0: the site origin's).
+  - `pdok_3d_buildings(bdf, bounds=None, *, margin=150.0, hide_within=(), hide_margin=0.5)`: a
+    `tilesets` entry with the 3D BAG's buildings (LoD 2.2) over `bounds` (degrees, such as the
+    ground map's; by default the area `osm_ground_map` covers), without those within the
+    `hide_within` polygons in the model's coordinates, grown by `hide_margin` metres.
+  - `bag_panden_under(bdf, footprint=None)`: the BAG panden with more than half of their area
+    under `footprint` (in the model's coordinates; by default the union of the frame's
+    `footprint` column, from `bimpolars.simple_features`), by `identificatie`, as polygons in
+    the model's coordinates.
+  - `site_3d_tiles(tileset_url, bounds)`: a one-level tileset of the finest tiles of a 3D Tiles
+    tileset (with region bounding volumes) that overlap `bounds`, fetching only the external
+    tilesets on the way: 3d-tiles-renderer 0.3.46 would fetch every child of a tile without
+    content.
 - `specklewidgets.bim` (the `[bim]` extra):
   - `bim_objects(bdf, *, color=None, name=None)`: a BimDataFrame as the v3 objects of one
     Speckle model, root first, serialized with specklepy. One DataObject per row with a mesh
@@ -173,7 +256,7 @@ just setup          # npm ci + uv sync --locked
 just build          # tsc + vite: js/ → src/specklewidgets/static/ (committed)
 just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
 just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
-just e2e            # the example notebook in headless Chromium (see below)
+just e2e            # the example notebooks in headless Chromium (see below)
 just live           # receive and send on a real Speckle server (see below)
 ```
 
@@ -193,8 +276,13 @@ by SwiftShader) and asserts that the three Revit Advanced Sample models load wit
 errors, that the canvas is drawn on and that the viewer reports the element count and bounding
 box that `tests/test_rvt_advanced_sample.py` reaches without the viewer; that each BimDataFrame
 of the architectural model draws one element per row with a mesh and spans the frame's `bbox`
-(`tests/test_rvt_arch_bimdataframe.py` has the numbers); and that the page asks no CDN for
-anything. The models come through `bimpolars.data.fetch`: set `BIMPOLARS_DATA_DIR` to a local
-copy of the bimpolars bucket, or let it download (16 MB, and 45 MB for the IFC).
+(`tests/test_rvt_arch_bimdataframe.py` has the numbers); that Sixty5 in
+`examples/sixty5_geo.py` stands on its BAG pand, on the ground map and among the 3D BAG with
+its own building left out; and that the page asks no CDN for anything. The Sixty5 test runs
+twice: offline, with PDOK's APIs answered by `e2e/offline-pdok/sitecustomize.py` and the map
+and 3D BAG tiles made by `e2e/surroundings.mjs`, and live, where api.pdok.nl and
+tile.openstreetmap.org answer. The models come through `bimpolars.data.fetch`: set
+`BIMPOLARS_DATA_DIR` to a local copy of the bimpolars bucket, or let it download (16 MB, and
+45 MB for the IFC).
 
 `sandbox/oauth/` holds the earlier OAuth widget, which is not packaged.

@@ -6,7 +6,7 @@ import license from "rollup-plugin-license";
 // imports don't resolve from a blob URL), so every entry gets its own vite build: a single
 // multi-entry build would split shared code into chunks the entries import relatively.
 // build.mjs loops over the entries.
-export const ENTRIES = ["js/speckle-viewer.ts"];
+export const ENTRIES = ["js/speckle-viewer.ts", "js/geo-speckle-viewer.ts"];
 export const OUT_DIR = "src/specklewidgets/static";
 
 // Packages that ship no license file get a pointer instead of the text. The Apache-2.0 text,

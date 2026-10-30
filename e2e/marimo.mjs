@@ -41,6 +41,11 @@ async function waitForServer(url, timeout) {
  * Serves a notebook with `marimo run` and opens it in headless Chromium (WebGL by SwiftShader).
  *
  * @param {string} notebook the notebook's path from the repository root
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] more environment for marimo and its kernel
+ * @param {(context: import("playwright").BrowserContext) => Promise<void>} [options.route]
+ *   routes the browser's requests before it opens the notebook, as the stand-ins for PDOK and
+ *   OSM do
  * @returns {Promise<{
  *   page: import("playwright").Page,
  *   errors: string[],
@@ -50,7 +55,7 @@ async function waitForServer(url, timeout) {
  *   it logs; a wait for a locator that on timeout fails with what the page logged (and saves a
  *   screenshot of the page in OUT); and what stops marimo and the browser
  */
-export async function openNotebook(notebook) {
+export async function openNotebook(notebook, { env = {}, route } = {}) {
   const port = await freePort();
   const marimo = spawn(
     "uv",
@@ -65,7 +70,7 @@ export async function openNotebook(notebook) {
       "--port",
       `${port}`,
     ],
-    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] },
+    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"], env: { ...process.env, ...env } },
   );
   let browser;
   async function close() {
@@ -83,6 +88,7 @@ export async function openNotebook(notebook) {
       errors.push(`request to esm.sh: ${route.request().url()}`);
       await route.abort();
     });
+    await route?.(context);
     const page = await context.newPage();
     // Everything the page logs and every request that fails, for the message of a test that
     // times out before it gets to the errors
