@@ -1,8 +1,9 @@
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 /* Side by side: the 3D view and the footprint map at full height under a one-line bar, a
-   draggable separator between them (splitter.ts); stacked below 900 px, with a strip on the
-   right that scrolls the page while the panes keep their touches */
+   draggable separator between them (splitter.ts), and over them a strip of instructions split
+   where the separator is; stacked below 900 px, with a strip on the right that holds them and
+   scrolls the page while the panes keep their touches */
 :root {
   --bg: #f4f5f7;
   --fg: #1b2230;
@@ -66,19 +67,6 @@ h1 {
   color: var(--muted);
 }
 
-.how {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  gap: 2px 12px;
-  margin: 0;
-  color: var(--muted);
-}
-
-.how .action {
-  color: var(--fg);
-  font-weight: 600;
-}
-
 a {
   color: var(--accent);
 }
@@ -89,11 +77,57 @@ a {
   grid-template-columns:
     minmax(0, var(--viewer-share, 3fr)) auto
     minmax(0, var(--map-share, 2fr));
+  /* The instructions' two lines, then the panes */
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
   background: var(--line);
 }
 
+/* "Click a BIM element | to see its footprint on the map": the sentence's halves meet at the
+   separator and move with it, in the look of the phone's strip */
+.how {
+  margin: 0;
+  padding: 0 12px;
+  background: var(--separator);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.how-click {
+  grid-area: 1 / 1;
+  padding-top: 4px;
+  text-align: right;
+}
+
+.how-shift {
+  grid-area: 2 / 1;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.how-see {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+  padding-top: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+#viewer-pane {
+  grid-area: 3 / 1;
+}
+
+#map-pane {
+  grid-area: 3 / 3;
+}
+
 .splitter {
+  grid-row: 1 / -1;
+  grid-column: 2;
   position: relative;
   width: 10px;
   border-inline: 1px solid var(--line);
@@ -250,7 +284,7 @@ a {
     height: auto;
   }
 
-  .bar .how,
+  .how,
   .splitter {
     display: none;
   }
