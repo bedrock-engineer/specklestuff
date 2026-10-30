@@ -6,6 +6,7 @@ import type { FeatureCollection } from "geojson";
 import geoSpeckleViewer from "../js/geo-speckle-viewer";
 import type { GeoSpeckleViewerModel } from "../js/lib/types";
 import { type Basemap, FootprintMap, type Footprints, selectedFootprints } from "./footprint-map";
+import { splitter } from "./splitter";
 import { StaticModel } from "./static-model";
 
 /** Where site/sixty5.py's files are, relative to the page: any repository's Pages path works */
@@ -34,20 +35,18 @@ function level(elevation: number | null): string {
   return elevation === null ? "" : ` · level ${elevation >= 0 ? "+" : ""}${elevation.toFixed(2)} m`;
 }
 
-/** The card under the map: what is selected, or how to select */
+/** The card on the map: what is selected, nothing without a selection (the header says how) */
 function describe(card: HTMLElement, ids: string[], footprints: Footprints) {
   const { features, storeys } = selectedFootprints(footprints, ids);
   const lines: HTMLElement[] = [];
-  if (ids.length === 0) {
-    lines.push(paragraph("hint", "Click an element in the 3D view to see its footprint here."));
-  } else if (ids.length === 1 && features.length === 1) {
+  if (ids.length === 1 && features.length === 1) {
     const { properties } = features[0];
     lines.push(paragraph("class", properties.class ?? "element"));
     lines.push(paragraph("name", properties.name ?? properties.id));
     if (properties.storey) {
       lines.push(paragraph("storey", properties.storey + level(properties.elevation)));
     }
-  } else {
+  } else if (ids.length > 1) {
     const on = storeys.length === 1 ? "storey" : "storeys";
     lines.push(paragraph("name", `${ids.length} elements on ${storeys.length} ${on}`));
     const list = document.createElement("ul");
@@ -71,6 +70,8 @@ async function main() {
   const viewerPane = byId("viewer-pane");
   const loading = byId("loading");
   const card = byId("selection");
+  // The viewer and the map follow their panes' sizes themselves
+  splitter(byId("splitter"), viewerPane.parentElement as HTMLElement);
   try {
     const [state, objects, footprints, outline] = await Promise.all([
       fetchData("viewer.json").then(

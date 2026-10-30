@@ -2,9 +2,9 @@
 
 `site/` is the demo page for GitHub Pages (`.github/workflows/pages.yml`, on every push to main;
 bimpolars' own Pages workflow builds the same page from this repository's main): Sixty5 in a
-GeoSpeckleViewer beside a map of the clicked element's footprint, the layout side by side
-(stacked below 900 px), as joost chose. `just site-data`, `just site` and `just site-dev` build
-and serve it.
+GeoSpeckleViewer beside a map of the clicked element's footprint, the layout side by side with a
+draggable separator (stacked below 900 px, without one), as joost chose. `just site-data`,
+`just site` and `just site-dev` build and serve it.
 
 ## How it is built
 
@@ -14,7 +14,13 @@ and serve it.
   `outline.geojson` their union).
 - `main.ts` calls the widget's own `render` with a `StaticModel` (`static-model.ts`: an AnyModel
   without a kernel, firing `change:<trait>` on `set`), sets `height` to the pane's, and follows
-  `selected` with `footprint-map.ts` (MapLibre on PDOK's luchtfoto, or BRT).
+  `selected` with `footprint-map.ts` (MapLibre on PDOK's BRT, or its luchtfoto; the building's
+  outline dotted red). `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
+  viewer and the map follow their panes' sizes with ResizeObservers of their own.
+- The title is `VITE_SITE_TITLE`, which Vite puts into `index.html` (`%VITE_SITE_TITLE%`):
+  `site/.env` holds specklestuff's, and bimpolars' Pages workflow sets bimpolars' in the
+  environment, which wins over `.env`. The header's two-row hint says how to select; the card
+  on the map stays empty, and out of sight, until something is selected.
 - `e2e/site.test.mjs` writes the data offline, builds the page into `e2e/.out/site` and serves
   it as Pages does.
 
@@ -34,7 +40,8 @@ and serve it.
 
 ## Known numbers
 
-The demo page (`site/`, `e2e/site.test.mjs`, 80 s in the cloud): `site/sixty5.py` takes 25 s and
-writes 1363 footprints (every drawn row has one), `footprints.geojson` 1.6 MB and
+The demo page (`site/`, `e2e/site.test.mjs`, 3.5 minutes in the cloud, 1.5 of them the
+separator's test, as SwiftShader redraws the model at each width): `site/sixty5.py` takes 25 s
+and writes 1363 footprints (every drawn row has one), `footprints.geojson` 1.6 MB and
 `objects.json.gz` 1.2 MB; the page's bundle is 3.0 MB (1.0 MB gzipped) and MapLibre's worker
 0.5 MB.

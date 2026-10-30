@@ -52,8 +52,11 @@ export const BASEMAPS = {
 
 export type Basemap = keyof typeof BASEMAPS;
 
+/** The basemap the map opens on; index.html's pressed button says the same */
+export const DEFAULT_BASEMAP: Basemap = "topographic";
+
 const COLOURS = {
-  outline: "#ffffff",
+  outline: "#e3262b",
   storey: "#9cc3ff",
   selected: "#2f6fde",
 };
@@ -90,8 +93,8 @@ export function selectedFootprints(footprints: Footprints, ids: string[]) {
 }
 
 /**
- * A MapLibre map of a model's footprints on PDOK's aerial photo: the building's outline, and
- * for a selection its footprints filled, with a ring around each so that a column's half
+ * A MapLibre map of a model's footprints on PDOK's topographic map: the building's outline
+ * dotted red, and for a selection its footprints filled, with a ring around each so that a column's half
  * metre stands out, and the other footprints of their storeys faint.
  */
 export class FootprintMap {
@@ -119,7 +122,9 @@ export class FootprintMap {
             id: basemap,
             type: "raster" as const,
             source: basemap,
-            layout: { visibility: basemap === "aerial" ? ("visible" as const) : ("none" as const) },
+            layout: {
+              visibility: basemap === DEFAULT_BASEMAP ? ("visible" as const) : ("none" as const),
+            },
           })),
           {
             id: "storey-fill",
@@ -139,7 +144,9 @@ export class FootprintMap {
             id: "outline",
             type: "line",
             source: "outline",
-            paint: { "line-color": COLOURS.outline, "line-width": 2, "line-dasharray": [3, 2] },
+            // Dots: dashes of no length with round caps, a dot's width apart
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": COLOURS.outline, "line-width": 3, "line-dasharray": [0, 2] },
           },
           {
             id: "selected-fill",
