@@ -42,11 +42,13 @@ export async function mountSpeckleViewer<T extends SpeckleViewerModel>(
   const traits = model as unknown as AnyModel<SpeckleViewerModel>;
   const container = document.createElement("div");
   function size() {
-    // A fixed height, or one that follows the notebook's width
+    // A fixed height, or one that follows the notebook's width. The viewer's orbit controls set
+    // no touch-action, so without one a touch screen scrolls the page on a drag and cancels the
+    // camera's move a few pixels in, and pinches zoom the page.
     const height = traits.get("height");
     container.style.cssText = height
-      ? `position: relative; width: 100%; height: ${height}px;`
-      : `position: relative; width: 100%; aspect-ratio: ${traits.get("aspect_ratio")};`;
+      ? `position: relative; width: 100%; height: ${height}px; touch-action: none;`
+      : `position: relative; width: 100%; aspect-ratio: ${traits.get("aspect_ratio")}; touch-action: none;`;
   }
   size();
   el.appendChild(container);
