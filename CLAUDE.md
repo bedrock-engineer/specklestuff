@@ -30,14 +30,22 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   self-contained module, so entries must not share chunks.
 - `@speckle/viewer`, `@speckle/objectloader2` and `three` are externals on esm.sh at the exact
   versions in package.json's `dependencies`, every URL with `?target=es2022` (vite.config.js
-  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. Bump the three
-  together: three must be the version the viewer's own range resolves to on esm.sh.
+  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. The viewer's
+  URL also pins three and objectloader2 with `&deps=`: without it esm.sh resolves the peer
+  ranges of its dependencies on their own, and the graph holds three.js 0.140.2, 0.172.0 and
+  0.186.1. `node e2e/esm-check.mjs` crawls the graph and fails on a module that does not
+  answer 200 (with esm.sh's error) or on two builds of one external; CI runs it before the
+  e2e. Bump the three together: three must be the version the viewer's own range resolves to
+  on esm.sh.
 - The Python core depends on anywidget and traitlets only and imports nothing else.
   `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
   bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
   (it is not on PyPI). `SpeckleViewer` recognises a BimDataFrame by the class in
   `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then.
   `tests/test_bim.py` and the data tests skip without bimpolars or specklepy.
+  `test_the_core_imports_neither_bimpolars_nor_specklepy` (test_facade.py) and
+  `test_a_bimdataframe_without_specklepy_names_the_extra` (test_bim.py) run in a subprocess
+  with `sys.modules[...] = None` to keep it that way.
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
   one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
   each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s

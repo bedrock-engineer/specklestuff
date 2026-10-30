@@ -37,9 +37,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bimpolars
-          # The date of the bucket's data the known numbers are for: bump it with them, since a
-          # cache key is never overwritten and fetch downloads only what is missing
-          key: bimpolars-data-2026-10-30
+          # The date of the bucket's data the known numbers are for, and what the tests fetch
+          # beyond the Speckle objects: bump it with either, since a cache key is never
+          # overwritten and fetch downloads only what is missing
+          key: bimpolars-data-2026-10-30-arch-ifc
       - run: uv run pytest
 
   e2e:
@@ -55,14 +56,23 @@ jobs:
         with:
           python-version: "3.13"
       - run: npm ci
+      # The widget's esm.sh imports, crawled: every module answers, one build of each external
+      - run: node e2e/esm-check.mjs
       - run: npx playwright install --with-deps chromium
       - run: uv sync --locked
       - name: Cache test data
         uses: actions/cache@v4
         with:
           path: ~/.cache/bimpolars
-          key: bimpolars-data-2026-10-30
+          key: bimpolars-data-2026-10-30-arch-ifc
       # The real esm.sh, which the runners reach, rather than the mirror of node_modules
       - run: npm run e2e
         env:
           E2E_ESM_SH: network
+      # The canvas, or the page when the viewer never reported
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: e2e/.out/
+          if-no-files-found: ignore
