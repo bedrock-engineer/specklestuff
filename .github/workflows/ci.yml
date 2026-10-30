@@ -55,20 +55,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: npm ci
-      # Diagnosis of esm.sh's answers to variants of the viewer's URL, to be removed with the fix
-      - name: esm.sh variants
-        continue-on-error: true
-        run: |
-          for url in \
-            'https://esm.sh/@speckle/viewer@2.31.14?target=es2022' \
-            'https://esm.sh/@speckle/viewer@2.31.14?target=es2022&deps=three@0.140.2' \
-            'https://esm.sh/@speckle/viewer@2.31.14' \
-            'https://esm.sh/three@%3E=0.125.0?target=es2022' \
-            'https://esm.sh/troika-three-text@0.52.4?target=es2022&deps=three@0.140.2'; do
-            echo "::group::$url"
-            node e2e/esm-check.mjs "$url" || true
-            echo "::endgroup::"
-          done
       # The widget's esm.sh imports, crawled: every module answers, one build of each external
       - run: node e2e/esm-check.mjs
       - run: npx playwright install --with-deps chromium

@@ -7,8 +7,9 @@ import anywidget from "@anywidget/vite";
 // viewer's own three.js import and ours from one module, so the markers we add are the
 // viewer's three.js objects. ?deps pins a package's dependencies that the widget imports as
 // well to the widget's versions, through the whole build: esm.sh otherwise resolves each peer
-// range on its own (troika-three-text's three ">=0.125.0" under the viewer answers HTTP 500,
-// and would be a second three.js if it built).
+// range on its own, and the viewer's graph holds three builds of three.js (0.140.2, and 0.172.0
+// and 0.186.1 for the peer ranges of troika-three-text and three-mesh-bvh, ">=0.125.0" and
+// ">= 0.123.0"). e2e/esm-check.mjs checks that there is one.
 const readJson = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url)));
 const { dependencies } = readJson("package.json");
 function esmSh(name, version) {
