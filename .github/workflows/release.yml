@@ -10,10 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm at package.json's packageManager version
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - uses: astral-sh/setup-uv@v6
 
@@ -25,12 +27,12 @@ jobs:
             exit 1
           fi
 
-      - run: npm ci
-      - run: npm run test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test
 
       # tsc + a from-scratch rebuild of the bundles in static/, so the wheel never ships
       # stale JS regardless of what was committed
-      - run: npm run build
+      - run: pnpm run build
 
       # only the minimal test group + the package itself: the data tests skip without bimpolars
       - run: uv run --no-default-groups --group test pytest

@@ -51,7 +51,7 @@ TRAITS = (
     "surroundings",
 )
 """GeoSpeckleViewer's synced traits besides ``objects_gz``: GeoSpeckleViewerModel in
-js/lib/types.ts."""
+packages/geospeckle-viewer/src/lib/types.ts."""
 
 
 def sixty5() -> BimDataFrame:

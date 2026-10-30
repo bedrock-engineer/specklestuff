@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 
-// The demo page for GitHub Pages: site/index.html and what it imports, the widget's js/
+// The demo page for GitHub Pages: site/index.html and what it imports, the npm package
 // among it, into site/dist. site/sixty5.py writes the data into site/public/data first.
 export default defineConfig({
   root: import.meta.dirname,

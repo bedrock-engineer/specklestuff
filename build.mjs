@@ -1,5 +1,5 @@
 // Builds every widget entry into src/specklewidgets/static/, one vite build each (see
-// vite.config.js). A node script rather than a shell line so that `npm run build` works in
+// vite.config.js). A node script rather than a shell line so that `pnpm run build` works in
 // cmd.exe as well: no rm -rf, no ENTRY=... prefix.
 //
 //   node build.mjs           clean build of all entries

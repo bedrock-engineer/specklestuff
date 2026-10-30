@@ -10,17 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # pnpm at package.json's packageManager version
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       - uses: taiki-e/install-action@v2
         with:
           tool: just
       - run: just setup-js
       - run: just check-js
-      # tsc + the bundle, which is committed: it must be the build of the committed js/
+      # tsc + the bundle, which is committed: it must be the build of the committed
+      # packages/geospeckle-viewer
       - run: just check-bundle
+      # The npm package's dist/ (not committed), as it would be published
+      - run: just build-npm
 
   python:
     runs-on: ubuntu-latest
@@ -52,10 +57,12 @@ jobs:
     needs: [js, python]
     steps:
       - uses: actions/checkout@v4
+      # pnpm at package.json's packageManager version
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
@@ -63,7 +70,7 @@ jobs:
         with:
           tool: just
       - run: just setup
-      - run: npx playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium
       - name: Cache test data
         uses: actions/cache@v4
         with:

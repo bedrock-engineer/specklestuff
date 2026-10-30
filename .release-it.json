@@ -10,13 +10,16 @@
     "release": false
   },
   "hooks": {
-    "before:init": ["npm run typecheck", "npm run test", "uv run pytest"],
+    "before:init": ["pnpm run typecheck", "pnpm run test", "uv run pytest"],
     "after:bump": "uv lock"
   },
   "plugins": {
     "@release-it/bumper": {
       "in": { "file": "pyproject.toml", "path": "project.version" },
-      "out": { "file": "pyproject.toml", "path": "project.version" }
+      "out": [
+        { "file": "pyproject.toml", "path": "project.version" },
+        { "file": "packages/geospeckle-viewer/package.json", "path": "version" }
+      ]
     }
   }
 }
