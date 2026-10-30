@@ -1,10 +1,10 @@
 """The surroundings of a georeferenced BimDataFrame: specklewidgets.geo on Sixty5.
 
 The structural model of Sixty5 (Strijp-S, Eindhoven) read with read_ifc and placed with its
-derived Engineering CRS (bimpolars' CLAUDE.md has the numbers). PDOK's APIs are out of reach
-from some environments (the cloud containers), so the tests of what is read from them answer
-with synthetic tilesets and panden; the tests marked by the ``pdok`` fixture read the real
-ones and skip where api.pdok.nl does not answer.
+derived Engineering CRS (bimpolars' docs/agents/test-data.md has the numbers). PDOK's APIs are
+out of reach from some environments (the cloud containers), so the tests of what is read from
+them answer with synthetic tilesets and panden; the tests marked by the ``pdok`` fixture read
+the real ones and skip where api.pdok.nl does not answer.
 """
 
 import math

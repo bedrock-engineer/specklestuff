@@ -77,7 +77,7 @@ build-backend = "hatchling.build"
 packages = ["src/specklewidgets"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/.claude", "/CLAUDE.md", "/CONTEXT.md", "/sandbox", "/e2e"]
+exclude = ["/.claude", "/AGENTS.md", "/CONTEXT.md", "/docs", "/sandbox", "/e2e"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

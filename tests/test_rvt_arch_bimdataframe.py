@@ -29,7 +29,7 @@ FRAME_BBOX = {
     "ifc": (-107.4743, -53.3989, -1.8288, 211.5911, 98.3638, 12.4854),
 }
 """The drawn rows' xmin, ymin, zmin, xmax, ymax, zmax in metres, to 0.1 mm. The IFC export sits
-9.2 m east and 22.6 m north of the Speckle model (bimpolars' CLAUDE.md)."""
+9.2 m east and 22.6 m north of the Speckle model (bimpolars' docs/agents/test-data.md)."""
 
 
 @pytest.fixture(scope="module")
