@@ -66,7 +66,7 @@ e2e:
 site-data:
     uv run python site/sixty5.py site/public/data
 
-# The demo page for GitHub Pages, into site/dist
+# The demo page for GitHub Pages, into site/dist (`SITE=bimpolars just site` for bimpolars')
 site: site-data
     pnpm run site
 

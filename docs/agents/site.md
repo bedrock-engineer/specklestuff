@@ -24,9 +24,9 @@ always move the camera or the map (joost, on his phone). `just site-data`,
   `selected` with `footprint-map.ts` (MapLibre on PDOK's BRT, or its luchtfoto; the building's
   outline dotted red). `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
   viewer and the map follow their panes' sizes with ResizeObservers of their own.
-- The title is `VITE_SITE_TITLE`, which Vite puts into `index.html` (`%VITE_SITE_TITLE%`):
-  `site/.env` holds specklestuff's, and bimpolars' Pages workflow sets bimpolars' in the
-  environment, which wins over `.env`. The header's two-row hint says how to select; the card
+- The header's title and intro are `site/intro/<SITE>.html`, which `vite.config.js` puts into
+  `index.html`, the h1 as the `<title>` too: `SITE` is unset (specklestuff) or `bimpolars`, which
+  bimpolars' Pages workflow sets (`SITE=bimpolars just site` builds that one here). The header's two-row hint says how to select; the card
   on the map stays empty, and out of sight, until something is selected.
 - `e2e/site.test.mjs` writes the data offline, builds the page into `e2e/.out/site` and serves
   it as Pages does.

@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- VITE_SITE_TITLE: site/.env has specklestuff's, bimpolars' Pages workflow sets its own -->
-    <title>%VITE_SITE_TITLE%</title>
+    <!-- The intro's h1, filled in by vite.config.js -->
+    <title></title>
     <meta
       name="description"
       content="The structural model of Sixty5, a tower at Strijp-S in Eindhoven, read from IFC and converted to geodata with bimpolars, in specklestuff's GeoSpeckleViewer among PDOK's 3D BAG, beside a map of the clicked element's footprint."
@@ -14,13 +14,8 @@
   <body>
     <header class="bar">
       <div class="intro">
-        <h1>%VITE_SITE_TITLE%</h1>
-        <p>
-          The structural model of Sixty5, a tower at Strijp-S in Eindhoven. Read from IFC &amp;
-          converted to geodata with
-          <a href="https://github.com/bedrock-engineer/bimpolars">bimpolars</a>. Visualized in the
-          <a href="https://github.com/bedrock-engineer/specklestuff">GeoSpeckleViewer</a>.
-        </p>
+        <!-- site/intro/<SITE>.html: specklestuff's, or bimpolars' for its Pages -->
+        <!-- intro -->
       </div>
     </header>
     <main class="panes">
