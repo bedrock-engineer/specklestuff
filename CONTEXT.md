@@ -19,7 +19,7 @@ _Avoid_: object (any v3 object, chunks and meshes included), node (the viewer's 
 
 **Definition**:
 An `InstanceDefinitionProxy` on the root: geometry shared by several placements, by
-applicationId (`def-<n>` from the Revit connector, numbered per model).
+applicationId (`def-<n>`, which the projection of a Revit bundle numbers per model).
 _Avoid_: block, family, type
 
 **Member**:
@@ -29,7 +29,9 @@ where an instance places it.
 
 **Instance**:
 An `InstanceProxy`: a placement of a definition with a 4x4 `transform`. Its applicationId is
-the element's, so selecting an instance selects the element.
+the element's, with `-instance-<n>` appended when the element has several placements or
+geometry of its own (185 of 5550 in the RVT architectural model; `read_speckle` strips it), so
+selecting an instance selects the element.
 _Avoid_: block reference, occurrence
 
 **World**:

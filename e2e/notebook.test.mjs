@@ -5,7 +5,8 @@
 //   npm run build && npm run e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs).
+// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs), unless
+// E2E_ESM_SH=network: then the browser loads the real esm.sh, as a user's does (CI sets it).
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

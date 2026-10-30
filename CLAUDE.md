@@ -148,5 +148,8 @@ e2e` serves esm.sh from a mirror bundled out of `node_modules` (`e2e/esm-mirror.
 geo test's offline run answers PDOK and OSM itself (`e2e/offline-pdok/` goes on the kernel's
 PYTHONPATH: its `sitecustomize.py` patches `urllib.request.urlopen` for api.pdok.nl), so they
 run there as well; the live run and `tests/test_geo.py`'s `pdok` tests skip there and run on
-GitHub Actions. The e2e files run one after the other (`--test-concurrency=1`): each starts
-marimo and a SwiftShader Chromium.
+GitHub Actions. CI sets `E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's
+browser loads, and the test fails on three's "Multiple instances of Three.js" warning (which
+also guards 3d-tiles-renderer's `&deps=three`). The e2e files run one after the other
+(`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium, through
+`e2e/marimo.mjs`, which holds the `E2E_ESM_SH` switch.
