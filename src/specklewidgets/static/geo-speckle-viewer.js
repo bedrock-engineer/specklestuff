@@ -58864,7 +58864,7 @@ async function mountSpeckleViewer(model, el2) {
   const container = document.createElement("div");
   function size2() {
     const height = traits.get("height");
-    container.style.cssText = height ? `position: relative; width: 100%; height: ${height}px;` : `position: relative; width: 100%; aspect-ratio: ${traits.get("aspect_ratio")};`;
+    container.style.cssText = height ? `position: relative; width: 100%; height: ${height}px; touch-action: none;` : `position: relative; width: 100%; aspect-ratio: ${traits.get("aspect_ratio")}; touch-action: none;`;
   }
   size2();
   el2.appendChild(container);

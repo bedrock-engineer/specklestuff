@@ -47,6 +47,8 @@ async function waitForServer(url, timeout) {
  *   OSM do
  * @param {string} [options.name] the name of the screenshot a failed wait leaves in OUT
  * @param {{ width: number, height: number }} [options.viewport]
+ * @param {import("playwright").BrowserContextOptions} [options.device] more of the browser
+ *   context's options, a phone's touch screen for one
  * @returns {Promise<{
  *   page: import("playwright").Page,
  *   errors: string[],
@@ -58,11 +60,11 @@ async function waitForServer(url, timeout) {
  */
 export async function openPage(
   url,
-  { route, name = "page", viewport = { width: 1280, height: 1000 } } = {},
+  { route, name = "page", viewport = { width: 1280, height: 1000 }, device = {} } = {},
 ) {
   const browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
   try {
-    const context = await browser.newContext({ viewport });
+    const context = await browser.newContext({ viewport, ...device });
     const errors = [];
     // The bundle is self-contained: the CDN it used to import from must not be asked
     await context.route("https://esm.sh/**", async (route) => {

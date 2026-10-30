@@ -28,6 +28,11 @@ The words model, element, definition, member and placement are defined in
 - It batches an instance's geometry as instanced only from 10,000 vertices up; smaller
   instances are drawn as ordinary meshes under their InstanceProxy node, and a definition
   placed once is drawn as its own objects, hence `singlePlacements` for selection.
+- Its `SmoothOrbitControls` set no CSS `touch-action` (their `touchAction` option defaults to
+  `"none"` and only steers a `touchmove` listener that is never added then), so on a touch
+  screen the browser took drags as pans and cancelled the camera's pointer stream a few pixels
+  in, and pinches zoomed the page. `mountSpeckleViewer` gives its container `touch-action: none`;
+  keep it in both of `size()`'s `cssText`s.
 - Headless Chromium needs `--enable-unsafe-swiftshader` for WebGL; a frame of the three RVT
   models takes tens of seconds in SwiftShader, so screenshots need long timeouts.
 

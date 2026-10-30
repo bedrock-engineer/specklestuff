@@ -1,6 +1,7 @@
 // Opens the demo page (site/) in headless Chromium: Sixty5 in a GeoSpeckleViewer beside a
 // MapLibre map, a click in the viewer showing the element's footprint on the map, the
-// separator between them resizing both. The test
+// separator between them resizing both, and on a phone a strip that scrolls the page while the
+// panes keep their touches. The test
 // writes the page's data with site/sixty5.py and builds the page into OUT, then serves it as
 // GitHub Pages does: static files, the gzipped model as it is.
 //
@@ -80,6 +81,25 @@ let server;
 let opened;
 let served;
 const basemapTiles = [];
+const pdok = tilePng([200, 210, 190]);
+
+/** The stand-ins for OSM's and PDOK's tiles; what routeSurroundings served */
+async function routeTiles(context) {
+  const tiles = await routeSurroundings(context);
+  await context.route("https://service.pdok.nl/**", async (route) => {
+    basemapTiles.push(route.request().url());
+    await route.fulfill({
+      body: pdok,
+      contentType: "image/png",
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
+  });
+  return tiles;
+}
+
+function url() {
+  return `http://127.0.0.1:${server.address().port}/`;
+}
 
 before(async () => {
   await mkdir(OUT, { recursive: true });
@@ -94,20 +114,11 @@ before(async () => {
     build: { outDir: DIST, emptyOutDir: true },
   });
   server = await serve();
-  const pdok = tilePng([200, 210, 190]);
-  opened = await openPage(`http://127.0.0.1:${server.address().port}/`, {
+  opened = await openPage(url(), {
     name: "site",
     viewport: { width: 1440, height: 900 },
     async route(context) {
-      served = await routeSurroundings(context);
-      await context.route("https://service.pdok.nl/**", async (route) => {
-        basemapTiles.push(route.request().url());
-        await route.fulfill({
-          body: pdok,
-          contentType: "image/png",
-          headers: { "Access-Control-Allow-Origin": "*" },
-        });
-      });
+      served = await routeTiles(context);
     },
   });
 });
@@ -228,3 +239,66 @@ test("the separator resizes the viewer and the map", { timeout: 5 * MINUTE }, as
   await canvasFills(page, "#viewer-pane", "#viewer canvas");
   assert.deepEqual(errors, []);
 });
+
+test(
+  "on a phone, a strip scrolls the page and the panes keep their touches",
+  {
+    timeout: 5 * MINUTE,
+  },
+  async () => {
+    const phone = await openPage(url(), {
+      name: "site-phone",
+      viewport: { width: 390, height: 844 },
+      device: { hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+      route: routeTiles,
+    });
+    try {
+      const { page, errors, waitFor } = phone;
+      // The viewer's element comes before its model
+      await waitFor(page.locator("#viewer > div"), MINUTE);
+      assert.equal(
+        await page
+          .locator("#viewer > div")
+          .evaluate((element) => getComputedStyle(element).touchAction),
+        "none",
+        "the widget takes the touches on its viewer, whatever the page around it",
+      );
+      assert.ok(await page.locator(".bar .how").isHidden(), "the strip has the header's hint");
+      const rail = await page.locator(".rail").boundingBox();
+      const viewer = await page.locator("#viewer-pane").boundingBox();
+      const map = await page.locator("#map-pane").boundingBox();
+      assert.equal(Math.round(rail.x + rail.width), 390, "the strip is on the right");
+      assert.ok(
+        Math.abs(rail.y - viewer.y) < 1 && Math.abs(rail.y + rail.height - map.y - map.height) < 1,
+        "the strip runs beside both panes",
+      );
+      // A finger's swipe up from the top of the page, through the browser's touch input (CDP's
+      // synthesized scroll gestures scroll nothing in headless Chromium)
+      const cdp = await page.context().newCDPSession(page);
+      async function swipe(x, y) {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        const touch = (type, dy) =>
+          cdp.send("Input.dispatchTouchEvent", {
+            type,
+            touchPoints: type === "touchEnd" ? [] : [{ x: Math.round(x), y: Math.round(y - dy) }],
+          });
+        await touch("touchStart", 0);
+        for (let dy = 30; dy <= 300; dy += 30) {
+          await touch("touchMove", dy);
+        }
+        await touch("touchEnd", 300);
+        await page.waitForTimeout(300);
+        return page.evaluate(() => window.scrollY);
+      }
+      assert.ok((await swipe(rail.x + rail.width / 2, 600)) > 100, "a swipe on the strip scrolls");
+      assert.equal(await swipe(viewer.x + viewer.width / 2, viewer.y + viewer.height / 2), 0);
+      // Clear of the map's buttons, in the part of the map above the fold
+      assert.equal(await swipe(map.x + 80, map.y + 60), 0);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: path.join(OUT, "site-phone.png"), fullPage: true });
+      assert.deepEqual(errors, []);
+    } finally {
+      await phone.close();
+    }
+  },
+);

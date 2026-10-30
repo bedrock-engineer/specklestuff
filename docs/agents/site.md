@@ -3,7 +3,10 @@
 `site/` is the demo page for GitHub Pages (`.github/workflows/pages.yml`, on every push to main;
 bimpolars' own Pages workflow builds the same page from this repository's main): Sixty5 in a
 GeoSpeckleViewer beside a map of the clicked element's footprint, the layout side by side with a
-draggable separator (stacked below 900 px, without one), as joost chose. `just site-data`,
+draggable separator, as joost chose. Below 900 px the panes stack, without a separator, beside a
+strip on the right (`.rail`) that holds the instructions written vertically and is the only place
+on the panes where a swipe scrolls the page: the panes are `touch-action: none`, so their touches
+always move the camera or the map (joost, on his phone). `just site-data`,
 `just site` and `just site-dev` build and serve it.
 
 ## How it is built
@@ -40,8 +43,9 @@ draggable separator (stacked below 900 px, without one), as joost chose. `just s
 
 ## Known numbers
 
-The demo page (`site/`, `e2e/site.test.mjs`, 3.5 minutes in the cloud, 1.5 of them the
-separator's test, as SwiftShader redraws the model at each width): `site/sixty5.py` takes 25 s
+The demo page (`site/`, `e2e/site.test.mjs`, 4 minutes in the cloud, 1.5 of them the separator's
+test, as SwiftShader redraws the model at each width, and 1.5 the phone's, whose touches wait on
+the model loading): `site/sixty5.py` takes 25 s
 and writes 1363 footprints (every drawn row has one), `footprints.geojson` 1.6 MB and
 `objects.json.gz` 1.2 MB; the page's bundle is 3.0 MB (1.0 MB gzipped) and MapLibre's worker
 0.5 MB.
