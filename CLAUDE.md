@@ -8,8 +8,10 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 - `src/specklewidgets/`: the Python package, the single source of truth for the Python API.
   `speckle_viewer.py` (`SpeckleViewer`: traits + constructor facade; `Marker`), `models.py`
   (`models_gz`: packs models and adjusts what trips the viewer), `bim.py` (`bim_objects`,
-  `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra), `static/` the built
-  bundles (committed, `minify: false`, so the wheel and `git+` installs need no node).
+  `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra), `server.py`
+  (`local_client`, `token_client`, `receive`, `send`, `ReceivedVersion`: a Speckle server, the
+  `[server]` extra), `static/` the built bundles (committed, `minify: false`, so the wheel and
+  `git+` installs need no node).
 - `js/`: one entry per widget (`speckle-viewer.ts`) composing `js/lib/` modules;
   `js/lib/types.ts` is the TS mirror of the trait comments, change them together. Pure logic
   (selection, the element count, gunzip) is in `js/lib` with colocated `*.test.ts` (vitest).
@@ -18,6 +20,8 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `examples/rvt_arch_bimdataframe.py`: the architectural model as BimDataFrames from
   `read_speckle` and `read_ifc`, two viewers; `e2e/bimdataframe.test.mjs` opens it.
   `e2e/marimo.mjs` serves a notebook and opens it for both.
+  `examples/speckle_receive_send.py`: sign in, receive a version, compare it with the bucket's
+  frame, send it back; no e2e test (it needs a server).
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 - `CONTEXT.md`: the glossary (model, element, definition, member, placement).
 
@@ -38,6 +42,28 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   (it is not on PyPI). `SpeckleViewer` recognises a BimDataFrame by the class in
   `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then.
   `tests/test_bim.py` and the data tests skip without bimpolars or specklepy.
+- `specklewidgets.server` needs the extra `[server]` (`specklepy[bundle]`: its bundle download
+  imports pyarrow) and `bimpolars[speckle]` (`bimpolars.bundle.bundle_objects`, the
+  projection of a bundle-only version with the two fixes specklepy's `to_base` lacks; never
+  specklepy's own `operations.receive` of a bundle reference, which is the plain `to_base`).
+  It uses specklepy's deprecated v3 pipeline on purpose (issue #4: until Speckle opens its
+  bundle code; no upstream bug reports) and silences only those DeprecationWarnings, by
+  message (`server._DEPRECATIONS`); a test in `tests/test_server.py` runs a send and a
+  receive with DeprecationWarnings as errors.
+- A token is never written to disk: `token_client` keeps it in the client, `send` passes
+  `use_default_cache=False` (no SQLite object cache), and the example takes it from an
+  `EnvConfig` field. `local_client` passes over an account whose token the server refuses
+  (401, 403 or a GraphQL error) and lets other failures (an unreachable server) raise.
+- `receive` downloads with `specklepy.bundle.download.download_bundle` (not
+  `bundle.receive`, whose `Model` deletes its temporary folder on close and which raises
+  instead of answering "no bundle"), into `<directory>/<model id>/<version id>/`, the bucket's
+  `speckle-bundle` layout, and does not mark the version received.
+- Server tests: `tests/test_server.py` runs everything against `tests/fake_speckle_server.py`,
+  a localhost server for the requests specklepy makes (GraphQL by query text, ServerTransport's
+  REST routes, the `/api/v2` artifact listing). When `server.py` starts using another
+  specklepy call, teach the fake its request. `tests/test_server_live.py` (marker `live`,
+  deselected by `addopts`; `uv run pytest -m live`) repeats them on app.speckle.systems and
+  skips without a local account; `tests/round_trip.py` holds the checks both share.
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
   one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
   each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s
@@ -85,6 +111,14 @@ takes 45 s): `read_speckle` with the bundle draws 5568 rows (every row with a me
 `rvt-advanced-sample-arch.ifc` draws 5512 (5647 with a mesh less 135 openings), bbox x
 -107.4743..211.5911, y -53.3989..98.3638, z -1.8288..12.4854 m. `bim_objects` takes 4 to 6 s
 on either (specklepy hashes 17,600 objects, 36 to 45 MB of JSON).
+
+The server tests (`tests/test_server.py`, 35 s): receiving the bundle-only arch version from
+the fake server gives the bucket's frame (`BimDataFrame.equals`), and its non-root objects
+the bucket's ids; sending the arch frame (5568 drawn rows) and receiving it back keeps every
+drawn row's id, class, triangles (corner by corner) and styles (name, face count, colour to
+1/255), in 16 s. The live round trip sends the str frame (918 drawn rows) instead, to keep
+the upload to joost's account small. The cloud containers cannot reach app.speckle.systems,
+so the live tests have not run there (they skip); the fake covers the same calls offline.
 
 esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
 of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. The two e2e files run one

@@ -1,0 +1,219 @@
+"""Receive and send against a fake Speckle server on localhost (fake_speckle_server.py).
+
+The server serves the Revit Advanced Sample's architectural version from the bimpolars bucket,
+as a bundle and as v3 objects, so that receiving it can be compared with the bucket's frame,
+and stores what a send uploads, so that a round trip runs through specklepy's HTTP requests.
+The same checks against a real server are in test_server_live.py.
+"""
+
+import json
+import tempfile
+import warnings
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from fake_speckle_server import FakeSpeckleServer
+from speckle_objects import revit_like
+
+# bimpolars[speckle] is a dev dependency, specklepy with its bundle reader the [server] extra
+data = pytest.importorskip("bimpolars.data")
+server = pytest.importorskip("specklewidgets.server")
+pl = pytest.importorskip("polars")
+from specklepy.logging.exceptions import SpeckleException  # noqa: E402
+
+from round_trip import assert_kept, bucket_version  # noqa: E402
+
+ARCH = data.RVT_SPECKLE_ARCH
+
+
+@pytest.fixture(scope="module")
+def arch() -> Any:
+    return bucket_version(ARCH)
+
+
+@pytest.fixture
+def fake() -> Any:
+    with FakeSpeckleServer().running() as fake:
+        yield fake
+
+
+@pytest.fixture
+def client(fake) -> Any:
+    return server.token_client(fake.token, fake.url)
+
+
+@pytest.fixture
+def accounts(monkeypatch, tmp_path) -> Path:
+    """An empty folder of local Speckle accounts, where specklepy looks for them."""
+    monkeypatch.setenv("SPECKLE_USERDATA_PATH", str(tmp_path))
+    folder = tmp_path / "Speckle" / "Accounts"
+    folder.mkdir(parents=True)
+    return folder
+
+
+def add_account(folder: Path, url: str, token: str, *, default: bool = False) -> None:
+    """A local account as Speckle Manager stores it."""
+    account = {
+        "id": token,
+        "token": token,
+        "isDefault": default,
+        "serverInfo": {"url": url, "name": "Fake Speckle"},
+        "userInfo": {"id": "fake-user", "name": "Fake User", "email": "user@example.com"},
+    }
+    (folder / f"{token}.json").write_text(json.dumps(account))
+
+
+def bundle_reference(model_id: str, version_id: str) -> str:
+    return f"bundle.{PROJECT}.{model_id}.{version_id}"
+
+
+PROJECT = "461cc2a20f"
+"""The Speckle project of the Revit Advanced Sample versions."""
+
+
+def test_without_a_local_account_there_is_no_local_client(accounts):
+    assert server.local_client("https://app.speckle.systems") is None
+
+
+def test_the_local_account_signs_in(fake, accounts):
+    add_account(accounts, fake.url, fake.token)
+    client = server.local_client(fake.url)
+    assert client is not None
+    assert client.account.token == fake.token
+    assert client.url == fake.url
+
+
+def test_an_account_the_server_refuses_is_passed_over(fake, accounts):
+    add_account(accounts, fake.url, "expired", default=True)
+    assert server.local_client(fake.url) is None
+    add_account(accounts, fake.url, fake.token)
+    client = server.local_client(fake.url)
+    assert client is not None
+    assert client.account.token == fake.token
+
+
+def test_an_account_of_another_server_is_not_used(fake, accounts):
+    add_account(accounts, "https://speckle.example.com", fake.token)
+    assert server.local_client(fake.url) is None
+
+
+def test_a_token_signs_in(fake):
+    client = server.token_client(fake.token, fake.url)
+    assert client.account.userInfo.name == "Fake User"
+    with pytest.raises(ValueError, match="refuses the token"):
+        server.token_client("wrong", fake.url)
+
+
+@pytest.mark.parametrize(
+    ("given", "url"),
+    [
+        ("app.speckle.systems", "https://app.speckle.systems"),
+        ("https://app.speckle.systems/projects/461cc2a20f", "https://app.speckle.systems"),
+        ("http://localhost:3000/", "http://localhost:3000"),
+    ],
+)
+def test_a_server_is_its_scheme_and_host(given, url):
+    assert server._server_url(given) == url
+
+
+def test_receiving_a_bundle_only_version_gives_the_bucket_frame(fake, client, arch, tmp_path):
+    fake.add_bundle(PROJECT, ARCH.model_id, ARCH.version_id, arch.bundle)
+    fake.add_version(
+        PROJECT,
+        ARCH.model_id,
+        bundle_reference(ARCH.model_id, ARCH.version_id),
+        version_id=ARCH.version_id,
+    )
+    # the model's latest version
+    received = server.receive(client, PROJECT, ARCH.model_id, directory=tmp_path)
+    assert received.v3_route == "projected"
+    assert (received.project_id, received.model_id, received.version_id) == (
+        PROJECT,
+        ARCH.model_id,
+        ARCH.version_id,
+    )
+    assert received.bundle == tmp_path / ARCH.model_id / ARCH.version_id
+    assert sorted(path.name for path in received.bundle.iterdir()) == sorted(
+        path.name for path in arch.bundle.iterdir() if path.suffix == ".parquet"
+    )
+    # bundle_objects reproduces the bucket's projection, object for object but the root
+    assert {o["id"] for o in received.objects[1:]} == {o["id"] for o in arch.objects[1:]}
+    assert received.bimdataframe().equals(arch.frame)
+
+
+def test_receiving_a_version_with_v3_objects(fake, client, arch, tmp_path):
+    fake.add_objects(PROJECT, arch.objects)
+    fake.add_bundle(PROJECT, ARCH.model_id, ARCH.version_id, arch.bundle)
+    fake.add_version(PROJECT, ARCH.model_id, arch.objects[0]["id"], version_id=ARCH.version_id)
+    received = server.receive(client, PROJECT, ARCH.model_id, ARCH.version_id, directory=tmp_path)
+    assert received.v3_route == "server"
+    assert received.objects[0] == arch.objects[0]
+    assert sorted(received.objects[1:], key=lambda o: o["id"]) == sorted(
+        arch.objects[1:], key=lambda o: o["id"]
+    )
+    assert received.bundle == tmp_path / ARCH.model_id / ARCH.version_id
+    assert received.bimdataframe().equals(arch.frame)
+
+
+def test_a_version_without_a_bundle_leaves_no_folder(fake, client, monkeypatch):
+    objects = revit_like()
+    # a root names its closure, which the server sends with it
+    objects[0]["__closure"] = {o["id"]: 1 for o in objects[1:]}
+    fake.add_objects(PROJECT, objects)
+    fake.add_version(PROJECT, "model", objects[0]["id"])
+    made: list[str] = []
+    real_mkdtemp = tempfile.mkdtemp
+
+    def mkdtemp(**kwargs: Any) -> str:
+        made.append(real_mkdtemp(**kwargs))
+        return made[-1]
+
+    monkeypatch.setattr(server.tempfile, "mkdtemp", mkdtemp)
+    received = server.receive(client, PROJECT, "model")
+    assert received.bundle is None
+    assert received.v3_route == "server"
+    assert [o["id"] for o in received.objects] == [o["id"] for o in objects]
+    assert len(made) == 1
+    assert not Path(made[0]).exists()
+
+
+def test_a_bundle_only_version_without_its_bundle_raises(fake, client, tmp_path):
+    fake.add_version(PROJECT, "model", bundle_reference("model", "v1"), version_id="v1")
+    with pytest.raises(ValueError, match="exists only as a bundle"):
+        server.receive(client, PROJECT, "model", directory=tmp_path)
+
+
+def test_a_model_without_versions_raises(fake, client):
+    with pytest.raises(ValueError, match="has no version"):
+        server.receive(client, PROJECT, "empty")
+
+
+def test_a_sent_bimdataframe_comes_back(fake, client, arch):
+    version_id = server.send(client, arch.frame, PROJECT, "sent", message="round trip")
+    (version,) = fake.versions[(PROJECT, "sent")]
+    assert version["id"] == version_id
+    assert (version["message"], version["sourceApplication"]) == ("round trip", "specklewidgets")
+    received = server.receive(client, PROJECT, "sent")
+    assert received.version_id == version_id
+    assert received.v3_route == "server"
+    assert received.bundle is None
+    assert received.objects[0]["id"] == version["referencedObject"]
+    assert_kept(arch.frame, received.bimdataframe())
+
+
+def test_send_and_receive_keep_specklepy_deprecations_to_themselves(fake, client, arch):
+    small = arch.frame.with_frame(arch.frame.frame.head(50))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        server.send(client, small, PROJECT, "sent")
+        server.receive(client, PROJECT, "sent")
+
+
+def test_sending_needs_a_token_the_server_takes(fake, client, arch):
+    client.account.token = "revoked"
+    small = arch.frame.with_frame(arch.frame.frame.head(50))
+    with pytest.raises(SpeckleException, match="Invalid credentials"):
+        server.send(client, small, PROJECT, "sent")
+    assert (PROJECT, "sent") not in fake.versions

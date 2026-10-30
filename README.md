@@ -54,6 +54,24 @@ bdf.frame.filter(pl.col("id").is_in(ids))
 `examples/rvt_arch_bimdataframe.py` shows the Revit Advanced Sample's architectural model read
 both ways, `read_speckle` and `read_ifc`, side by side.
 
+`specklewidgets.server` receives a version from a Speckle server, as its bundle and its v3
+objects, and sends a BimDataFrame as a new version, signed in with this machine's Speckle
+account or a personal access token:
+
+```python
+from specklewidgets.server import local_client, receive, send
+
+client = local_client("https://app.speckle.systems")  # None without a local account
+version = receive(client, "461cc2a20f", "363cae173a")  # the model's latest version
+viewer = mo.ui.anywidget(SpeckleViewer(version.objects))
+bdf = version.bimdataframe()  # read_speckle(version.objects, version.bundle)
+
+version_id = send(client, bdf, "<project id>", "<model id>", message="from a notebook")
+```
+
+`examples/speckle_receive_send.py` is that notebook, with a token field (wigglystuff's
+`EnvConfig`) for a machine without a Speckle account.
+
 ## Install
 
 ```sh
@@ -63,7 +81,9 @@ uv add "specklewidgets @ git+https://github.com/bedrock-engineer/specklestuff"
 The package depends on anywidget and traitlets only; the built widget is in the wheel. The
 browser loads `@speckle/viewer` and three.js from [esm.sh](https://esm.sh), so the notebook needs
 to reach it. A BimDataFrame needs the extra `specklewidgets[bim]` (specklepy, which turns its
-rows into Speckle objects) and bimpolars, which any BimDataFrame comes with.
+rows into Speckle objects) and bimpolars, which any BimDataFrame comes with. Receiving and
+sending need the extra `specklewidgets[server]` (specklepy with its bundle reader) and
+`bimpolars[speckle]`, which projects a bundle-only version to v3 objects.
 
 ## API
 
@@ -108,6 +128,28 @@ rows into Speckle objects) and bimpolars, which any BimDataFrame comes with.
     into the drawn rows, ids, classes, meshes and property sets included.
   - `bim_collection(bdf, *, color=None, name=None)`: the same as a specklepy `Collection`,
     one sub-collection per class, for specklepy to send.
+- `specklewidgets.server` (the `[server]` extra and `bimpolars[speckle]`), through specklepy's
+  v3 pipeline (`ServerTransport`, `operations.send`, `version.create`), which specklepy
+  deprecates since 2026.9; its DeprecationWarnings are silenced:
+  - `local_client(server="https://app.speckle.systems")`: a `SpeckleClient` signed in with
+    this machine's Speckle account for the server (Speckle Manager's or a connector's, as
+    specklepy's `get_local_accounts` finds them; the default account first, a refused token
+    passed over), or None.
+  - `token_client(token, server="https://app.speckle.systems")`: a client signed in with a
+    personal access token, kept in memory only; `ValueError` if the server refuses it. A
+    notebook takes the token from a password field, such as wigglystuff's `EnvConfig`.
+  - `receive(client, project_id, model_id, version_id=None, *, directory=None)`: a version
+    (the model's latest by default) as a `ReceivedVersion`: `objects`, its v3 objects root
+    first, and `bundle`, the folder its bundle is downloaded into,
+    `<directory>/<model id>/<version id>/` (a temporary folder by default; None when the
+    server has no bundle for it). A bundle-only version's objects are projected from its
+    bundle by `bimpolars.bundle.bundle_objects` (`v3_route` `"projected"`, else
+    `"server"`). `ReceivedVersion.bimdataframe()` reads it with `bimpolars.read_speckle`,
+    objects and bundle; for the Revit Advanced Sample's architectural version that is the
+    bimpolars bucket's frame.
+  - `send(client, bdf, project_id, model_id, *, message=None, color=None, name=None)`: sends
+    a BimDataFrame's `bim_collection` as a new version of a model and returns its id;
+    `receive` and `read_speckle` give back its drawn rows' ids, classes and meshes.
 
 ## Development
 
@@ -117,8 +159,18 @@ npm run build       # tsc + vite: js/ → src/specklewidgets/static/ (committed)
 npm run dev         # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
 npm run typecheck && npm run test && npm run lint && npm run fmt:check
 uv run pytest && uv run mypy src && uv run ruff check && uv run ruff format --check
+uv run pytest -m live   # receive and send on a real Speckle server (see below)
 npm run e2e         # the example notebook in headless Chromium (see below)
 ```
+
+`tests/test_server.py` receives and sends through a fake Speckle server on localhost
+(`tests/fake_speckle_server.py`, the requests specklepy makes), which serves the architectural
+version from the bimpolars bucket. `uv run pytest -m live` runs the same checks against
+app.speckle.systems with this machine's Speckle account, and skips without one (CI has none
+and gets no token): it receives the architectural version and compares it with the bucket's
+frame, and sends the structural model into a new model of `SPECKLEWIDGETS_TEST_PROJECT`, or
+of a new private project, on `SPECKLEWIDGETS_TEST_SERVER` (app.speckle.systems by default),
+and deletes what it made.
 
 `npm run e2e` serves the example notebooks with marimo, opens them in headless Chromium (WebGL
 by SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
