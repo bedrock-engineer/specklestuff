@@ -1,6 +1,6 @@
 # The BimDataFrame intake
 
-`specklewidgets.bim` (`bim_objects`, `bim_collection`; the `[bim]` extra) turns a bimpolars
+`specklewidgets.bim` (`bim_objects`, `bim_collection`) turns a bimpolars
 BimDataFrame into v3 objects. `SpeckleViewer` recognises a BimDataFrame by the class in
 `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then (the core
 dependency rule is in [AGENTS.md](../../AGENTS.md)).

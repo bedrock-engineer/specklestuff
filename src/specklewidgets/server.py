@@ -20,8 +20,8 @@ Manager's or a connector's, as specklepy's ``get_local_accounts`` finds them), a
 never written to disk, so a notebook should take it from a password field such as wigglystuff's
 ``EnvConfig`` (``examples/speckle_receive_send.py``) rather than from its code.
 
-This module needs the ``[server]`` extra (specklepy with its bundle reader) and bimpolars with
-its ``[speckle]`` extra; the rest of the package needs neither.
+This module needs bimpolars with its ``[speckle]`` extra, which brings specklepy's bundle
+reader (pyarrow); the rest of the package needs neither.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ try:
 except ImportError as error:
     raise ImportError(
         "specklewidgets.server needs specklepy with its bundle reader and bimpolars with "
-        "bimpolars.bundle: install the extra specklewidgets[server] and bimpolars[speckle]"
+        "bimpolars.bundle: install bimpolars[speckle]"
     ) from error
 
 from specklewidgets.bim import bim_collection

@@ -13,11 +13,10 @@ import pytest
 from speckle_objects import drawn_elements, mesh_bbox, unpack
 from specklewidgets import models_gz
 
-# bimpolars (and polars with it) is a dev dependency, specklepy the [bim] extra
+# bimpolars (and polars with it) is a dev dependency
 data = pytest.importorskip("bimpolars.data")
 bimpolars = pytest.importorskip("bimpolars")
 bim = pytest.importorskip("specklewidgets.bim")
-crs = pytest.importorskip("bimpolars.crs")
 gltf = pytest.importorskip("bimpolars.gltf")
 pl = pytest.importorskip("polars")
 
@@ -70,7 +69,7 @@ def test_the_meshes_span_the_frames_bbox(frames, packed, name):
         *(pl.col(c).max() for c in ("xmax", "ymax", "zmax")),
     ).row(0)
     # the frames keep the models' millimetres; the viewer works in metres, as mesh_bbox does
-    metres = [c * crs.linear_unit(frames[name].crs).conversion_factor for c in corners]
+    metres = [c * frames[name].crs.axis_info[0].unit_conversion_factor for c in corners]
     assert metres == pytest.approx(FRAME_BBOX[name], abs=1e-4)
     assert mesh_bbox(packed[name]) == pytest.approx(metres, abs=1e-9)
 

@@ -14,9 +14,9 @@ the few hundred metres around a site it strays from PROJ's own transformation by
 millimetres. The ground map and the 3D BAG cover the model's plan extent and a margin around
 it.
 
-This module needs the ``[geo]`` extra (pyproj) and bimpolars, which comes with any
-BimDataFrame. :func:`site_3d_tiles` and :func:`bag_panden_under` read PDOK's APIs on
-api.pdok.nl; the browser fetches the map tiles and the 3D BAG's tiles itself.
+This module needs bimpolars, which comes with any BimDataFrame, and with it pyproj.
+:func:`site_3d_tiles` and :func:`bag_panden_under` read PDOK's APIs on api.pdok.nl; the browser
+fetches the map tiles and the 3D BAG's tiles itself.
 """
 
 from __future__ import annotations
@@ -37,13 +37,10 @@ from shapely.geometry.base import BaseGeometry
 
 try:
     import pyproj
-    from bimpolars.crs import linear_unit
+    from bimpolars.crs import CRSLike, as_linear_unit
     from bimpolars.geobim import linearized_site_to_ecef
 except ImportError as error:
-    raise ImportError(
-        "specklewidgets.geo needs bimpolars and pyproj: install bimpolars and the extra "
-        "specklewidgets[geo]"
-    ) from error
+    raise ImportError("specklewidgets.geo needs bimpolars: install it") from error
 
 from specklewidgets.geospeckle_viewer import GroundMap, Tileset
 
@@ -340,8 +337,8 @@ def bag_panden_under(
 class _World:
     """The viewer's world of a model: its coordinates in metres, placed on earth by one 4x4."""
 
-    def __init__(self, crs: dict[str, Any]) -> None:
-        self.metres = linear_unit(crs).conversion_factor
+    def __init__(self, crs: CRSLike) -> None:
+        self.metres = as_linear_unit(crs).conversion_factor
         """Metres per unit of the model's coordinates."""
         self.to_ecef: Matrix = linearized_site_to_ecef(crs)
         self.from_ecef: Matrix = np.linalg.inv(self.to_ecef)

@@ -43,13 +43,13 @@ a few minutes; the e2e workflow runs only when started by hand.
 - Trait names stay the JSON wire format; facades only translate arguments.
   `packages/geospeckle-viewer/src/lib/types.ts` is the TS mirror of the trait comments, and
   `src/index.ts`'s defaults mirror the traits' defaults: change them together.
-- The Python core depends on anywidget and traitlets only and imports nothing else. Each
-  module with more lives behind an extra: `specklewidgets.bim` (`[bim]`: specklepy, plus the
-  bimpolars, numpy and polars any BimDataFrame brings; bimpolars stays a dev dependency, as it
-  is not on PyPI), `specklewidgets.geo` (`[geo]`) and `specklewidgets.server` (`[server]`).
-  `test_the_core_imports_neither_bimpolars_nor_specklepy` (test_facade.py) and
-  `test_a_bimdataframe_without_specklepy_names_the_extra` (test_bim.py) run in a subprocess with
-  `sys.modules[...] = None` to keep it that way.
+- The Python package depends on anywidget, traitlets and specklepy, and has no extras. The
+  viewers import neither specklepy nor bimpolars: `specklewidgets.bim` (specklepy's serializer
+  and bimpolars) is imported only for a BimDataFrame, and `specklewidgets.geo` (bimpolars and
+  its pyproj) and `specklewidgets.server` (`bimpolars[speckle]`) only when used. bimpolars
+  stays a dev dependency, as it is not on PyPI: any BimDataFrame brings it.
+  `test_the_core_imports_neither_bimpolars_nor_specklepy` (test_facade.py) runs in a
+  subprocess with `sys.modules[...] = None` to keep it that way.
 
 ## Docs
 

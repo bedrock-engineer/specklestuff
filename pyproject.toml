@@ -18,6 +18,7 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "anywidget>=0.9",
+    "specklepy>=2026.9.1",
     "traitlets>=5",
 ]
 
@@ -25,25 +26,11 @@ dependencies = [
 Repository = "https://github.com/bedrock-engineer/specklestuff"
 Issues = "https://github.com/bedrock-engineer/specklestuff/issues"
 
-[project.optional-dependencies]
-bim = [
-    "specklepy>=2026.9.1",
-]
-# What bimpolars[geobim] adds: bimpolars itself is not on PyPI, so the BimDataFrame brings it
-geo = [
-    "pyproj>=3.7",
-]
-server = [
-    "specklepy[bundle]>=2026.9.1",
-]
-
 [dependency-groups]
 dev = [
-    # with specklepy's bundle reader, for bimpolars.bundle_objects
-    "bimpolars[speckle]",
-    # the extras of the BimDataFrame intake, the surroundings and the server module, for their
-    # tests and examples
-    "specklewidgets[bim,geo,server]",
+    # read_ifc for the examples, the site and their tests; specklepy's bundle reader for
+    # bimpolars.bundle_objects and specklewidgets.server
+    "bimpolars[ifc,speckle]",
     "marimo>=0.17",
     "mypy>=1.14",
     "pytest>=8.3",
@@ -58,7 +45,7 @@ test = [
 ]
 
 [tool.uv.sources]
-bimpolars = { git = "https://github.com/bedrock-engineer/bimpolars", branch = "main" }
+bimpolars = { git = "https://github.com/bedrock-engineer/bimpolars", branch = "claude/project-thread-tqliy0" }
 
 # uv installs this repo as a path dependency in sandboxed notebooks and caches the built
 # wheel; without these keys a JS rebuild (which only touches static/) never invalidates it

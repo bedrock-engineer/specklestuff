@@ -5,7 +5,7 @@ web app, bundled with three.js into the widget) without a Speckle server. The v3
 more models go to the browser as gzipped JSON (:func:`~specklewidgets.models_gz`), and a
 ``SpeckleLoader`` subclass hands each model to ``ObjectLoader2Factory.createFromObjects``,
 the in-memory object loader. A :class:`bimpolars.BimDataFrame` becomes v3 objects first,
-through :func:`specklewidgets.bim.bim_objects` (the ``[bim]`` extra).
+through :func:`specklewidgets.bim.bim_objects`.
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ class SpeckleViewer(anywidget.AnyWidget):
             models: One model or a sequence of models (→ ``objects_gz``, packed by
                 :func:`~specklewidgets.models_gz`). A model is a Speckle version's v3
                 objects, its root first, parsed or as JSON array text; or a
-                :class:`bimpolars.BimDataFrame` (needs the ``[bim]`` extra).
+                :class:`bimpolars.BimDataFrame`.
             color: Colours the elements of the BimDataFrames by a column (its name) or a
                 polars expression instead of by their styles; see
                 :func:`specklewidgets.bim.bim_collection`.
@@ -144,7 +144,7 @@ def _speckle_models(models: Sequence[ViewerModel], color: str | pl.Expr | None) 
     speckle_models: list[Model] = []
     for model in models:
         if _is_bim_data_frame(model):
-            # specklepy is the [bim] extra's: imported only for a BimDataFrame
+            # bimpolars and specklepy's serializer, imported only for a BimDataFrame
             from specklewidgets.bim import bim_objects
 
             speckle_models.append(bim_objects(model, color=color))

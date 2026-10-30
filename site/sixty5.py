@@ -27,7 +27,6 @@ import polars as pl
 import pyproj
 import shapely
 from bimpolars import BimDataFrame, data, read_ifc, simple_features
-from bimpolars.crs import linear_unit
 from bimpolars.geobim import derived_engineering_crs, set_crs, with_geog
 from bimpolars.gltf import EXCLUDED_CLASSES
 
@@ -67,7 +66,7 @@ def sixty5() -> BimDataFrame:
         northing=384_156.5,
         orthometric_height=18.625,
         rotation=math.degrees(math.atan2(-0.7700680491484481, 0.6379617540893054)),
-        unit=linear_unit(bdf.crs),
+        unit=bdf,
         name="Sixty5",
     )
     return set_crs(bdf, crs)
@@ -130,7 +129,9 @@ def footprints(site: BimDataFrame) -> tuple[dict[str, Any], dict[str, Any]]:
     storeys = geog.filter(pl.col("class") == "IfcBuildingStorey").select(
         pl.col("id").alias("container"),
         pl.col("name").alias("storey"),
-        (pl.col("elevation") * linear_unit(site.crs).conversion_factor).alias("storey_elevation"),
+        (pl.col("elevation") * site.crs.axis_info[0].unit_conversion_factor).alias(
+            "storey_elevation"
+        ),
     )
     rows = (
         geog.filter(DRAWN)

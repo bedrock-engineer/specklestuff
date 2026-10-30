@@ -27,8 +27,8 @@ def test_one_object_is_not_a_model():
 
 
 def test_the_core_imports_neither_bimpolars_nor_specklepy(model):
-    # The core depends on anywidget and traitlets only: a viewer of raw models needs nothing of
-    # the [bim] extra, nor bimpolars, polars or numpy
+    # A viewer of raw models imports anywidget and traitlets only: neither specklepy, which
+    # only a BimDataFrame needs, nor bimpolars, polars or numpy
     lines = run_without(
         ("specklepy", "bimpolars", "polars", "numpy"),
         "import gzip\n"
