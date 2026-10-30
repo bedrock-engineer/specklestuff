@@ -9,7 +9,9 @@ at the word space over the separator's middle so that it moves with it; the sepa
 the strip (joost: "should really read as a single sentence"). Below 900 px the panes stack, without a separator, beside a
 strip on the right (`.rail`) that holds the instructions written vertically and is the only place
 on the panes where a swipe scrolls the page: the panes are `touch-action: none`, so their touches
-always move the camera or the map (joost, on his phone). `just site-data`,
+always move the camera or the map (joost, on his phone). There the header's intro is a `<details>`
+collapsed to the title, which a tap opens; an inline script in `index.html` opens it side by side
+before the first paint. `just site-data`,
 `just site` and `just site-dev` build and serve it.
 
 ## How it is built

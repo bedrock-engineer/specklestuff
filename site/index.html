@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- The intro's h1, filled in by vite.config.js -->
-    <title></title>
+    <!-- The title and the intro below: site/intro/<SITE>.html, filled in by vite.config.js -->
+    <title><!-- title --></title>
     <meta
       name="description"
       content="The structural model of Sixty5, a tower at Strijp-S in Eindhoven, read from IFC and converted to geodata with bimpolars, in specklestuff's GeoSpeckleViewer among PDOK's 3D BAG, beside a map of the clicked element's footprint."
@@ -13,10 +13,22 @@
   </head>
   <body>
     <header class="bar">
-      <div class="intro">
-        <!-- site/intro/<SITE>.html: specklestuff's, or bimpolars' for its Pages -->
+      <!-- Open beside each other, collapsed to the title when stacked: a tap opens it -->
+      <details class="intro">
+        <summary>
+          <h1><!-- title --></h1>
+        </summary>
         <!-- intro -->
-      </div>
+      </details>
+      <script>
+        // Before the first paint, so that the intro neither flashes on a phone nor pops in
+        {
+          const intro = document.querySelector(".intro");
+          const sideBySide = matchMedia("(min-width: 901px)");
+          intro.open = sideBySide.matches;
+          sideBySide.addEventListener("change", () => (intro.open = sideBySide.matches));
+        }
+      </script>
     </header>
     <main class="panes">
       <!-- The side-by-side layout's instructions, a sentence split where the panes are -->
