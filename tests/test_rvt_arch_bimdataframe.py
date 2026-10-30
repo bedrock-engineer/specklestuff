@@ -17,6 +17,8 @@ from specklewidgets import models_gz
 data = pytest.importorskip("bimpolars.data")
 bimpolars = pytest.importorskip("bimpolars")
 bim = pytest.importorskip("specklewidgets.bim")
+crs = pytest.importorskip("bimpolars.crs")
+gltf = pytest.importorskip("bimpolars.gltf")
 pl = pytest.importorskip("polars")
 
 DRAWN_ROWS = {"speckle": 5568, "ifc": 5512}
@@ -50,7 +52,7 @@ def packed(frames) -> dict[str, list[dict[str, Any]]]:
 def drawn(frame: Any) -> Any:
     return frame.filter(
         pl.col("mesh").is_not_null()
-        & (pl.col("class").cast(pl.String) != "IfcOpeningElement").fill_null(True)
+        & ~pl.col("class").cast(pl.String).is_in(gltf.EXCLUDED_CLASSES).fill_null(False)
     )
 
 
@@ -67,9 +69,10 @@ def test_the_meshes_span_the_frames_bbox(frames, packed, name):
         *(pl.col(c).min() for c in ("xmin", "ymin", "zmin")),
         *(pl.col(c).max() for c in ("xmax", "ymax", "zmax")),
     ).row(0)
-    # the frames are in millimetres; the viewer works in metres, as mesh_bbox does
-    assert [c / 1000 for c in corners] == pytest.approx(FRAME_BBOX[name], abs=1e-4)
-    assert mesh_bbox(packed[name]) == pytest.approx([c / 1000 for c in corners], abs=1e-9)
+    # the frames keep the models' millimetres; the viewer works in metres, as mesh_bbox does
+    metres = [c * crs.linear_unit(frames[name].crs).conversion_factor for c in corners]
+    assert metres == pytest.approx(FRAME_BBOX[name], abs=1e-4)
+    assert mesh_bbox(packed[name]) == pytest.approx(metres, abs=1e-9)
 
 
 def test_the_ifc_is_coloured_by_class(packed):

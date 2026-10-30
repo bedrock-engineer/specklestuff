@@ -3,19 +3,17 @@
 // SpeckleViewer (the first by its materials, the second by class). Each viewer must draw one
 // element per row with a mesh and span the BimDataFrame's bbox.
 //
-//   npm run build && npm run e2e
+//   just build && just e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it) and spends 45 s in read_ifc. esm.sh is served from node_modules,
-// unless E2E_ESM_SH=network (see marimo.mjs).
+// bimpolars download it) and spends 45 s in read_ifc. A request to esm.sh fails the test, as
+// in notebook.test.mjs (see marimo.mjs).
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { canvasContent, MINUTE, openNotebook } from "./marimo.mjs";
+import { canvasContent, MINUTE, OUT, openNotebook } from "./marimo.mjs";
 
-// The canvases as the test saw them, for a look when it fails (gitignored)
-const OUT = path.join(import.meta.dirname, ".out");
 const NOTEBOOK = "examples/rvt_arch_bimdataframe.py";
 
 // What tests/test_rvt_arch_bimdataframe.py reaches without the viewer: the rows with a mesh
@@ -30,10 +28,11 @@ const BBOX_TOLERANCE = 1e-4;
 let notebook;
 let page;
 let errors;
+let waitFor;
 
 before(async () => {
   notebook = await openNotebook(NOTEBOOK);
-  ({ page, errors } = notebook);
+  ({ page, errors, waitFor } = notebook);
 });
 
 after(async () => {
@@ -57,7 +56,7 @@ test(
     for (const [key, expected] of Object.entries(MODELS)) {
       // The report reruns when the viewer reports; 0 until the model is in
       const report = page.locator(`#${key}-report:not([data-object-count='0'])`);
-      await report.waitFor({ timeout: 8 * MINUTE });
+      await waitFor(report, 8 * MINUTE);
 
       const rows = Number(await report.getAttribute("data-drawn-rows"));
       assert.equal(rows, expected.rows, `${key}: rows with a mesh`);
@@ -87,6 +86,7 @@ test(
 
 test("a click selects a row of the BimDataFrame", { timeout: 5 * MINUTE }, async () => {
   const canvas = page.locator("canvas").nth(1);
+  await waitFor(canvas, MINUTE);
   const { width, height } = await canvas.boundingBox();
   const selected = page.locator("#ifc-selected");
   // The model fills the middle of the view; try a few points there until one hits

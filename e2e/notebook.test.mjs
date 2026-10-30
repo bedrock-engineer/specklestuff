@@ -2,19 +2,17 @@
 // examples/rvt_advanced_sample.py, the three Revit Advanced Sample models load into one
 // SpeckleViewer, and the test reads what the viewer reports back through its traits.
 //
-//   npm run build && npm run e2e
+//   just build && just e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs), unless
-// E2E_ESM_SH=network: then the browser loads the real esm.sh, as a user's does (CI sets it).
+// bimpolars download it). The widget bundles the viewer and three.js, so the page loads nothing
+// from a CDN; a request to esm.sh fails the test (see marimo.mjs).
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { canvasContent, MINUTE, openNotebook } from "./marimo.mjs";
+import { canvasContent, MINUTE, OUT, openNotebook } from "./marimo.mjs";
 
-// The canvas as the test saw it, for a look when it fails (gitignored)
-const OUT = path.join(import.meta.dirname, ".out");
 const NOTEBOOK = "examples/rvt_advanced_sample.py";
 
 // The numbers tests/test_rvt_advanced_sample.py reaches without the viewer: the elements a
@@ -27,10 +25,11 @@ const BBOX_TOLERANCE = 1e-4;
 let notebook;
 let page;
 let errors;
+let waitFor;
 
 before(async () => {
   notebook = await openNotebook(NOTEBOOK);
-  ({ page, errors } = notebook);
+  ({ page, errors, waitFor } = notebook);
 });
 
 after(async () => {
@@ -40,7 +39,7 @@ after(async () => {
 test("the three models render in one viewer", { timeout: 10 * MINUTE }, async () => {
   // The report cell reruns when the viewer reports; 0 until the models are in
   const report = page.locator("#viewer-report:not([data-object-count='0'])");
-  await report.waitFor({ timeout: 8 * MINUTE });
+  await waitFor(report, 8 * MINUTE);
 
   assert.equal(Number(await report.getAttribute("data-object-count")), OBJECT_COUNT);
   const bbox = JSON.parse(await report.getAttribute("data-scene-bbox"));
@@ -68,6 +67,7 @@ test("the three models render in one viewer", { timeout: 10 * MINUTE }, async ()
 
 test("a click selects an element", { timeout: 5 * MINUTE }, async () => {
   const canvas = page.locator("canvas").first();
+  await waitFor(canvas, MINUTE);
   const { width, height } = await canvas.boundingBox();
   const selected = page.locator("#viewer-selected");
   // The models fill the middle of the view; try a few points there until one hits

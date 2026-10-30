@@ -11,7 +11,8 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra), `server.py`
   (`local_client`, `token_client`, `receive`, `send`, `ReceivedVersion`: a Speckle server, the
   `[server]` extra), `static/` the built bundles (committed, `minify: false`, so the wheel and
-  `git+` installs need no node).
+  `git+` installs need no node) and each bundle's `<name>.LICENSES.txt`, the third-party
+  licenses rollup-plugin-license collects.
 - `js/`: one entry per widget (`speckle-viewer.ts`) composing `js/lib/` modules;
   `js/lib/types.ts` is the TS mirror of the trait comments, change them together. Pure logic
   (selection, the element count, gunzip) is in `js/lib` with colocated `*.test.ts` (vitest).
@@ -27,21 +28,30 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 
 ## Rules
 
-- `npm run build` after every change in `js/` and commit `src/specklewidgets/static/`.
-  `npm run typecheck`, `npm run test`, `npm run lint`, `npm run fmt:check`, `uv run pytest`,
-  `uv run mypy src`, `uv run ruff check` and `uv run ruff format --check` must pass.
-- One vite invocation per widget entry (`ENTRY=...`): anywidget loads each `_esm` as one
-  self-contained module, so entries must not share chunks.
-- `@speckle/viewer`, `@speckle/objectloader2` and `three` are externals on esm.sh at the exact
-  versions in package.json's `dependencies`, every URL with `?target=es2022` (vite.config.js
-  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. Bump the three
-  together: three must be the version the viewer's own range resolves to on esm.sh.
+- just is the task runner (the repo has two toolchains, npm and uv): `just` lists the
+  recipes and CI runs the same ones. `just build` after every change in `js/` and commit
+  `src/specklewidgets/static/`; `just check` (`check-js` and `check-py`: typecheck, vitest,
+  oxlint, oxfmt, ruff, mypy, pytest) must pass. Recipes run in sh (Git Bash on Windows);
+  package.json scripts stay single commands without `rm -rf` or `VAR=x` prefixes, because npm
+  runs them in cmd.exe on Windows (`build.mjs` cleans and loops in node for that reason).
+- One vite build per widget entry (`vite.config.js` `ENTRIES`, looped by `build.mjs`):
+  anywidget loads each `_esm` as one self-contained module, so entries must not share chunks
+  or load relative assets.
+- `@speckle/viewer`, `@speckle/objectloader2` and `three` are bundled in, at the exact versions
+  in package.json's `dependencies`. npm dedupes three to one copy, which the viewer's
+  three-mesh-bvh and troika dependencies resolve to as well, so the viewer and our markers
+  share one three.js (esm.sh resolved those peer ranges to 0.172.0 and 0.186.1, and its builds
+  failed for hours on 2026-10-30, which is why the widget no longer loads from it). Bump the
+  three together, and check `npm ls three` shows one version.
 - The Python core depends on anywidget and traitlets only and imports nothing else.
   `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
   bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
   (it is not on PyPI). `SpeckleViewer` recognises a BimDataFrame by the class in
   `sys.modules["bimpolars.frame"]` and imports `specklewidgets.bim` only then.
   `tests/test_bim.py` and the data tests skip without bimpolars or specklepy.
+  `test_the_core_imports_neither_bimpolars_nor_specklepy` (test_facade.py) and
+  `test_a_bimdataframe_without_specklepy_names_the_extra` (test_bim.py) run in a subprocess
+  with `sys.modules[...] = None` to keep it that way.
 - `specklewidgets.server` needs the extra `[server]` (`specklepy[bundle]`: its bundle download
   imports pyarrow) and `bimpolars[speckle]` (`bimpolars.bundle.bundle_objects`, the
   projection of a bundle-only version with the two fixes specklepy's `to_base` lacks; never
@@ -73,11 +83,11 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   a localhost server for the requests specklepy makes (GraphQL by query text, ServerTransport's
   REST routes, the `/api/v2` artifact listing). When `server.py` starts using another
   specklepy call, teach the fake its request. `tests/test_server_live.py` (marker `live`,
-  deselected by `addopts`; `uv run pytest -m live`) repeats them on app.speckle.systems and
-  skips without a local account; `tests/round_trip.py` holds the checks both share. The live
-  round trip deletes a scratch project it made, and the objects with it; in
-  `SPECKLEWIDGETS_TEST_PROJECT` it deletes only the model and the sent objects stay. A delete
-  answered with False warns with the id instead of failing.
+  deselected by `addopts`; `just live`, which is `uv run pytest -m live`) repeats them on
+  app.speckle.systems and skips without a local account; `tests/round_trip.py` holds the
+  checks both share. The live round trip deletes a scratch project it made, and the objects
+  with it; in `SPECKLEWIDGETS_TEST_PROJECT` it deletes only the model and the sent objects
+  stay. A delete answered with False warns with the id instead of failing.
 - A round trip through `send` and `receive` keeps the drawn rows' ids, classes, meshes and
   styles, not `container` (it comes back as the field
   `properties.object.container`: `read_speckle` sets the column from a bundle only) nor the
@@ -86,9 +96,12 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
   one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
   each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s
-  `_flatten`, so that `read_speckle` reads the drawn rows back (a test pins that). Unstyled
-  faces get no RenderMaterial, so they read back unstyled. Colours for `color` are the
-  dataviz reference palette's light categorical slots and blue ramp (steps 250 to 700).
+  `_flatten`, so that `read_speckle` reads back the drawn rows' ids, classes, names, meshes
+  and property sets (a test pins that). The other columns are plain fields, so they come back
+  inside the `object` set, not as columns: `container` reads back null, and the spatial rows
+  it points at have no mesh and are not drawn. Unstyled faces get no RenderMaterial, so they
+  read back unstyled. Colours for `color` are the dataviz reference palette's light
+  categorical slots and blue ramp (steps 250 to 700).
 - Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
   Python >= 3.12. Trait names stay the JSON wire format; facades only translate arguments.
 - The viewer works in metres: `scene_bbox` and `markers` are in metres whatever the models'
@@ -131,17 +144,15 @@ takes 45 s): `read_speckle` with the bundle draws 5568 rows (every row with a me
 -107.4743..211.5911, y -53.3989..98.3638, z -1.8288..12.4854 m. `bim_objects` takes 4 to 6 s
 on either (specklepy hashes 17,600 objects, 36 to 45 MB of JSON).
 
-The server tests (`tests/test_server.py`, 31 tests, 38 s): receiving the bundle-only arch version from
-the fake server gives the bucket's frame (`BimDataFrame.equals`), and its non-root objects
-the bucket's ids; sending the arch frame (5568 drawn rows) and receiving it back keeps every
+The server tests (`tests/test_server.py`, 31 tests, 38 s): receiving the bundle-only arch
+version from the fake server gives the bucket's frame (`BimDataFrame.equals`), and its non-root
+objects the bucket's ids; sending the arch frame (5568 drawn rows) and receiving it back keeps every
 drawn row's id, class, triangles (corner by corner) and styles (name, face count, colour to
 1/255), in 16 s. The live round trip sends the str frame (918 drawn rows) instead, to keep
 the upload to joost's account small. The cloud containers cannot reach app.speckle.systems,
 so the live tests have not run there (they skip); the fake covers the same calls offline.
 
-esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. CI sets
-`E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
-fails on three's "Multiple instances of Three.js" warning. The two e2e files run one after the
-other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium, through
-`e2e/marimo.mjs`, which holds the `E2E_ESM_SH` switch.
+The widget loads nothing from a CDN, so `just e2e` runs in the cloud containers as it does in
+CI. The tests fail on any request to esm.sh and on three's "Multiple instances of Three.js"
+warning. The two e2e files run one after the other (`--test-concurrency=1`): each starts
+marimo and a SwiftShader Chromium through `openNotebook` in `e2e/marimo.mjs`.

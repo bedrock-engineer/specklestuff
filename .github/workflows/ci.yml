@@ -14,13 +14,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run fmt:check
-      - run: npm run test
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup-js
+      - run: just check-js
       # tsc + the bundle, which is committed: it must be the build of the committed js/
-      - run: npm run build
-      - run: git diff --exit-code src/specklewidgets/static
+      - run: just check-bundle
 
   python:
     runs-on: ubuntu-latest
@@ -29,18 +29,19 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: uv sync --locked
-      - run: uv run ruff check
-      - run: uv run ruff format --check
-      - run: uv run mypy src
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup-py
       - name: Cache test data
         uses: actions/cache@v4
         with:
           path: ~/.cache/bimpolars
-          # The date of the bucket's data the known numbers are for: bump it with them, since a
-          # cache key is never overwritten and fetch downloads only what is missing
-          key: bimpolars-data-2026-10-30
-      - run: uv run pytest
+          # The date of the bucket's data the known numbers are for, and what the tests fetch
+          # beyond the Speckle objects: bump it with either, since a cache key is never
+          # overwritten and fetch downloads only what is missing
+          key: bimpolars-data-2026-10-30-arch-ifc
+      - run: just check-py
 
   e2e:
     runs-on: ubuntu-latest
@@ -54,15 +55,21 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: npm ci
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup
       - run: npx playwright install --with-deps chromium
-      - run: uv sync --locked
       - name: Cache test data
         uses: actions/cache@v4
         with:
           path: ~/.cache/bimpolars
-          key: bimpolars-data-2026-10-30
-      # The real esm.sh, which the runners reach, rather than the mirror of node_modules
-      - run: npm run e2e
-        env:
-          E2E_ESM_SH: network
+          key: bimpolars-data-2026-10-30-arch-ifc
+      - run: just e2e
+      # The canvas, or the page when the viewer never reported
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: e2e/.out/
+          if-no-files-found: ignore
