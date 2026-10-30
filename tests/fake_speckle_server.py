@@ -6,7 +6,9 @@ routes of ServerTransport (``/objects/<project>/<id>/single``, ``/api/getobjects
 ``/api/diff``, ``/objects/<project>`` uploads) and the ``/api/v2`` artifact listing of a
 version's bundle with its files behind "presigned" URLs. Every route but the server info and
 the files wants ``Authorization: Bearer <token>`` and answers 403 without it, as a server
-refusing a token does. The state is plain dicts, for the tests to fill and read.
+refusing a token does; a token in ``graphql_errors`` gets a GraphQL error with that code
+instead. The state is plain dicts, for the tests to fill and read, and ``requests`` lists
+each request with whether it carried an ``Authorization`` header.
 """
 
 from __future__ import annotations
@@ -35,6 +37,9 @@ class FakeSpeckleServer:
         versions: Per (project, model), the versions as the GraphQL API gives them, the
             latest first.
         bundles: Per (project, model, version), the files of the version's bundle by name.
+        graphql_errors: Tokens the GraphQL API answers with an error of this code
+            (``extensions.code``), such as ``FORBIDDEN``, instead of a 403.
+        requests: Each request's method, path and whether it carried ``Authorization``.
     """
 
     def __init__(self, token: str = "fake-token") -> None:
@@ -42,6 +47,8 @@ class FakeSpeckleServer:
         self.objects: dict[str, dict[str, str]] = {}
         self.versions: dict[tuple[str, str], list[dict[str, Any]]] = {}
         self.bundles: dict[tuple[str, str, str], dict[str, Path]] = {}
+        self.graphql_errors: dict[str, str] = {}
+        self.requests: list[tuple[str, str, bool]] = []
         self.url = ""
 
     def add_objects(self, project_id: str, objects: list[Mapping[str, Any]]) -> None:
@@ -171,7 +178,11 @@ class _Handler(BaseHTTPRequestHandler):
     def authorized(self) -> bool:
         return self.headers.get("Authorization") == f"Bearer {self.fake.token}"
 
+    def _record(self) -> None:
+        self.fake.requests.append((self.command, self.path, "Authorization" in self.headers))
+
     def do_GET(self) -> None:
+        self._record()
         parts = self.path.strip("/").split("/")
         if parts[0] == "files":
             _, project_id, model_id, version_id, name = parts
@@ -203,8 +214,14 @@ class _Handler(BaseHTTPRequestHandler):
         self._answer(HTTPStatus.NOT_FOUND, b"no such route")
 
     def do_POST(self) -> None:
+        self._record()
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
         parts = self.path.strip("/").split("/")
+        token = self.headers.get("Authorization", "").removeprefix("Bearer ")
+        if parts == ["graphql"] and token in self.fake.graphql_errors:
+            code = self.fake.graphql_errors[token]
+            error = {"message": f"fake {code}", "extensions": {"code": code}}
+            return self._json({"errors": [error], "data": None})
         if parts == ["graphql"]:
             request = json.loads(body)
             data = self.fake.graphql(

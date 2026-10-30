@@ -57,19 +57,24 @@ def _(DEFAULT_SERVER, mo):
 @app.cell
 def _(EnvConfig, local_client, mo, server, token_client):
     local = local_client(server.value)
-    token = mo.ui.anywidget(
-        EnvConfig({"SPECKLE_TOKEN": lambda _token: token_client(_token, server.value)})
-    )
+    # The field's validator signs in with the token and keeps the client, so the token is
+    # sent to the server once
+    signed_in = {}
+
+    def _sign_in(_token):
+        signed_in["client"] = token_client(_token, server.value)
+
+    token = mo.ui.anywidget(EnvConfig({"SPECKLE_TOKEN": _sign_in}))
     None if local else mo.vstack(
         [mo.md(f"No working Speckle account for `{server.value}` here: paste a token."), token]
     )
-    return local, token
+    return local, signed_in, token
 
 
 @app.cell
-def _(local, mo, server, token, token_client):
+def _(local, mo, signed_in, token):
     mo.stop(local is None and not token.all_valid)
-    client = local or token_client(token["SPECKLE_TOKEN"], server.value)
+    client = local or signed_in["client"]
     mo.md(
         f"Signed in to `{client.url}` as **{client.account.userInfo.name}**, with "
         + ("this machine's account." if local else "the token.")
@@ -126,8 +131,8 @@ def _(arch, bdf, data, mo, read_speckle, received, version_objects):
 
 
 @app.cell
-def _(mo, project_id):
-    target_project = mo.ui.text(value=project_id.value, label="Send to project")
+def _(mo):
+    target_project = mo.ui.text(label="Send to project")
     target_model = mo.ui.text(label="Model id")
     message = mo.ui.text(value="Sent from specklewidgets", label="Message", full_width=True)
     send_button = mo.ui.run_button(label="Send the BimDataFrame")
@@ -138,8 +143,8 @@ def _(mo, project_id):
 @app.cell
 def _(bdf, client, message, mo, send, send_button, target_model, target_project):
     mo.stop(
-        not send_button.value or not target_model.value,
-        mo.md("Name a model of a project you can write to, and press **Send**."),
+        not send_button.value or not (target_project.value and target_model.value),
+        mo.md("Name a project you can write to and a model in it, and press **Send**."),
     )
     sent = send(client, bdf, target_project.value, target_model.value, message=message.value)
     mo.md(

@@ -62,7 +62,7 @@ account or a personal access token:
 from specklewidgets.server import local_client, receive, send
 
 client = local_client("https://app.speckle.systems")  # None without a local account
-version = receive(client, "461cc2a20f", "363cae173a")  # the model's latest version
+version = receive(client, "461cc2a20f", "363cae173a", "d5e5bacdde")  # the arch version
 viewer = mo.ui.anywidget(SpeckleViewer(version.objects))
 bdf = version.bimdataframe()  # read_speckle(version.objects, version.bundle)
 
@@ -136,23 +136,28 @@ sending need the extra `specklewidgets[server]` (specklepy with its bundle reade
   deprecates since 2026.9; its DeprecationWarnings are silenced:
   - `local_client(server="https://app.speckle.systems")`: a `SpeckleClient` signed in with
     this machine's Speckle account for the server (Speckle Manager's or a connector's, as
-    specklepy's `get_local_accounts` finds them; the default account first, a refused token
-    passed over), or None.
+    specklepy's `get_local_accounts` finds them; the default account first, each signed in
+    at the URL it was stored with, so a token stored for https never goes over http; a
+    refused token passed over), or None.
   - `token_client(token, server="https://app.speckle.systems")`: a client signed in with a
-    personal access token, kept in memory only; `ValueError` if the server refuses it. A
-    notebook takes the token from a password field, such as wigglystuff's `EnvConfig`.
+    personal access token, kept in memory only; `ValueError` if the server refuses it, and a
+    `UserWarning` when the server is plain http on another machine. A notebook takes the
+    token from a password field, such as wigglystuff's `EnvConfig`.
   - `receive(client, project_id, model_id, version_id=None, *, directory=None)`: a version
     (the model's latest by default) as a `ReceivedVersion`: `objects`, its v3 objects root
     first, and `bundle`, the folder its bundle is downloaded into,
-    `<directory>/<model id>/<version id>/` (a temporary folder by default; None when the
-    server has no bundle for it). A bundle-only version's objects are projected from its
+    `<directory>/<model id>/<version id>/` (a temporary folder by default, removed again
+    when the receive fails; None when the server has no bundle for it). A bundle-only version's objects are projected from its
     bundle by `bimpolars.bundle.bundle_objects` (`v3_route` `"projected"`, else
     `"server"`). `ReceivedVersion.bimdataframe()` reads it with `bimpolars.read_speckle`,
     objects and bundle; for the Revit Advanced Sample's architectural version that is the
     bimpolars bucket's frame.
   - `send(client, bdf, project_id, model_id, *, message=None, color=None, name=None)`: sends
     a BimDataFrame's `bim_collection` as a new version of a model and returns its id;
-    `receive` and `read_speckle` give back its drawn rows' ids, classes and meshes.
+    `receive` and `read_speckle` give back its drawn rows' ids, classes and meshes. Not the
+    `container` column, which comes back as the field `properties.object.container`
+    (`read_speckle` sets `container` from a bundle only), nor the levels, which have no mesh
+    and are not drawn; `simple_features` then lays each footprint at its own lowest z.
 
 ## Development
 
@@ -172,8 +177,9 @@ version from the bimpolars bucket. `uv run pytest -m live` runs the same checks 
 app.speckle.systems with this machine's Speckle account, and skips without one (CI has none
 and gets no token): it receives the architectural version and compares it with the bucket's
 frame, and sends the structural model into a new model of `SPECKLEWIDGETS_TEST_PROJECT`, or
-of a new private project, on `SPECKLEWIDGETS_TEST_SERVER` (app.speckle.systems by default),
-and deletes what it made.
+of a new private project, on `SPECKLEWIDGETS_TEST_SERVER` (app.speckle.systems by default).
+It deletes a project it made, and with it the objects it sent; in `SPECKLEWIDGETS_TEST_PROJECT`
+it deletes only the model, and the sent objects stay in that project.
 
 `npm run e2e` serves the example notebooks with marimo, opens them in headless Chromium (WebGL
 by SwiftShader) and asserts that the three Revit Advanced Sample models load with no console

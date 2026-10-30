@@ -117,11 +117,61 @@ def test_an_account_of_another_server_is_not_used(fake, accounts):
     assert server.local_client(fake.url) is None
 
 
+def test_a_stored_account_signs_in_at_its_own_url(fake, accounts):
+    add_account(accounts, fake.url, fake.token)
+    # https by default, but the account was stored for the fake's http
+    client = server.local_client(fake.url.removeprefix("http://"))
+    assert client is not None
+    assert client.url == fake.url
+
+
+def test_a_stored_https_token_never_goes_over_http(fake, accounts):
+    add_account(accounts, fake.url.replace("http://", "https://"), fake.token)
+    # the fake speaks http only, so the stored https URL cannot reach it
+    with pytest.raises(SpeckleException):
+        server.local_client(fake.url)
+    assert not any(authorized for _, _, authorized in fake.requests)
+
+
+def test_a_graphql_refusal_passes_an_account_over_and_other_errors_raise(fake, accounts):
+    fake.graphql_errors = {"forbidden": "FORBIDDEN", "broken": "INTERNAL_SERVER_ERROR"}
+    add_account(accounts, fake.url, "forbidden")
+    assert server.local_client(fake.url) is None
+    add_account(accounts, fake.url, "broken", default=True)
+    with pytest.raises(SpeckleException, match="INTERNAL_SERVER_ERROR"):
+        server.local_client(fake.url)
+
+
 def test_a_token_signs_in(fake):
-    client = server.token_client(fake.token, fake.url)
+    with warnings.catch_warnings():
+        # http to this machine is no reason to warn
+        warnings.simplefilter("error", UserWarning)
+        client = server.token_client(fake.token, fake.url)
     assert client.account.userInfo.name == "Fake User"
     with pytest.raises(ValueError, match="refuses the token"):
         server.token_client("wrong", fake.url)
+
+
+def test_a_token_over_plain_http_to_another_machine_warns(monkeypatch):
+    # stop before any request: the warning comes first
+    monkeypatch.setattr(server.SpeckleClient, "authenticate_with_token", lambda self, token: None)
+    with pytest.warns(UserWarning, match="unencrypted"), pytest.raises(ValueError):
+        server.token_client("token", "http://speckle.example.com")
+
+
+@pytest.mark.parametrize(
+    ("host", "loopback"),
+    [
+        ("localhost", True),
+        ("127.0.0.1", True),
+        ("::1", True),
+        ("speckle.example.com", False),
+        ("10.0.0.1", False),
+        (None, False),
+    ],
+)
+def test_loopback_hosts(host, loopback):
+    assert server._is_loopback(host) is loopback
 
 
 @pytest.mark.parametrize(
@@ -197,6 +247,75 @@ def test_a_version_without_a_bundle_leaves_no_folder(fake, client, monkeypatch):
     assert not Path(made[0]).exists()
 
 
+def test_a_failed_receive_removes_its_temporary_folder(fake, client, arch, monkeypatch):
+    fake.add_bundle(PROJECT, ARCH.model_id, ARCH.version_id, arch.bundle)
+    fake.add_version(
+        PROJECT,
+        ARCH.model_id,
+        bundle_reference(ARCH.model_id, ARCH.version_id),
+        version_id=ARCH.version_id,
+    )
+    made: list[str] = []
+    real_mkdtemp = tempfile.mkdtemp
+
+    def mkdtemp(**kwargs: Any) -> str:
+        made.append(real_mkdtemp(**kwargs))
+        return made[-1]
+
+    def projection_fails(folder: Path) -> Any:
+        raise RuntimeError("projection failed")
+
+    monkeypatch.setattr(server.tempfile, "mkdtemp", mkdtemp)
+    monkeypatch.setattr(server, "bundle_objects", projection_fails)
+    with pytest.raises(RuntimeError, match="projection failed"):
+        server.receive(client, PROJECT, ARCH.model_id)
+    assert len(made) == 1
+    assert not Path(made[0]).exists()
+
+
+def test_bundle_downloads_carry_no_token(fake, client, arch, tmp_path):
+    fake.add_bundle(PROJECT, ARCH.model_id, ARCH.version_id, arch.bundle)
+    fake.add_version(
+        PROJECT,
+        ARCH.model_id,
+        bundle_reference(ARCH.model_id, ARCH.version_id),
+        version_id=ARCH.version_id,
+    )
+    server.receive(client, PROJECT, ARCH.model_id, directory=tmp_path)
+    listings = [authorized for _, path, authorized in fake.requests if path.endswith("artifacts")]
+    downloads = [authorized for _, path, authorized in fake.requests if path.startswith("/files/")]
+    assert listings == [True]
+    assert len(downloads) == 18
+    assert not any(downloads)
+
+
+def test_no_file_holds_the_token(fake, arch, monkeypatch, tmp_path):
+    for variable in ("HOME", "SPECKLE_USERDATA_PATH", "XDG_CACHE_HOME", "XDG_DATA_HOME"):
+        monkeypatch.setenv(variable, str(tmp_path / variable.lower()))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg_config_home"))
+    (tmp_path / "tmp").mkdir()
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "tmp"))
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "tmp"))
+    fake.token = "fake-token-6b1f0c9e4d2a"
+    fake.add_bundle(PROJECT, ARCH.model_id, ARCH.version_id, arch.bundle)
+    fake.add_version(
+        PROJECT,
+        ARCH.model_id,
+        bundle_reference(ARCH.model_id, ARCH.version_id),
+        version_id=ARCH.version_id,
+    )
+    client = server.token_client(fake.token, fake.url)
+    small = arch.frame.with_frame(arch.frame.frame.head(50))
+    server.send(client, small, PROJECT, "sent")
+    server.receive(client, PROJECT, "sent")
+    received = server.receive(client, PROJECT, ARCH.model_id)
+    files = [path for path in tmp_path.rglob("*") if path.is_file()]
+    # the bundle went into the temporary folder, so the search covers what receive writes
+    assert received.bundle is not None
+    assert received.bundle.is_relative_to(tmp_path / "tmp")
+    assert all(fake.token.encode() not in path.read_bytes() for path in files)
+
+
 def test_a_bundle_only_version_without_its_bundle_raises(fake, client, tmp_path):
     fake.add_version(PROJECT, "model", bundle_reference("model", "v1"), version_id="v1")
     with pytest.raises(ValueError, match="exists only as a bundle"):
@@ -218,7 +337,17 @@ def test_a_sent_bimdataframe_comes_back(fake, client, arch):
     assert received.v3_route == "server"
     assert received.bundle is None
     assert received.objects[0]["id"] == version["referencedObject"]
-    assert_kept(arch.frame, received.bimdataframe())
+    back = received.bimdataframe()
+    assert_kept(arch.frame, back)
+    # container comes back as a field of the object, not as the column, and the levels,
+    # which have no mesh, are not sent: read_speckle sets container from a bundle only
+    assert back.frame["container"].null_count() == len(back)
+    assert not back.frame.filter(pl.col("class") == "Levels").height
+    containers = back.frame.select(
+        "id", pl.col("properties").struct.field("object").struct.field("container")
+    )
+    sent = arch.frame.frame.join(back.frame.select("id"), on="id").select("id", "container")
+    assert dict(containers.drop_nulls().iter_rows()) == dict(sent.drop_nulls().iter_rows())
 
 
 def test_send_and_receive_keep_specklepy_deprecations_to_themselves(fake, client, arch):

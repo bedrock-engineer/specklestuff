@@ -26,6 +26,7 @@ its ``[speckle]`` extra; the rest of the package needs neither.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import shutil
@@ -77,6 +78,10 @@ module uses on purpose."""
 _REFUSED = frozenset({401, 403})
 """The HTTP status codes with which a Speckle server refuses a token."""
 
+_REFUSED_CODES = frozenset({"FORBIDDEN", "UNAUTHENTICATED", "UNAUTHORIZED_ACCESS_ERROR"})
+"""The GraphQL error codes (``extensions.code``) with which a Speckle server refuses a token;
+any other GraphQL error is a failure of its own."""
+
 
 @dataclass(frozen=True)
 class ReceivedVersion:
@@ -126,10 +131,12 @@ def local_client(server: str = DEFAULT_SERVER) -> SpeckleClient | None:
 
     The accounts are those Speckle Manager and the Speckle connectors store, as specklepy's
     ``get_local_accounts`` reads them (``SPECKLE_USERDATA_PATH`` moves their folder), whose
-    server URL has the server's host. The default account is tried first, and an account
-    whose token the server refuses is passed over, also when another account of the same user
-    follows (specklepy's ``get_accounts_for_server`` keeps one account per user, whichever it
-    lists first).
+    server URL has the server's host. Each account's client talks to the URL stored with it,
+    scheme included, so a stored token only goes to the server it was stored for:
+    ``local_client("http://app.speckle.systems")`` still signs in over https. The default
+    account is tried first, and an account whose token the server refuses is passed over,
+    also when another account of the same user follows (specklepy's
+    ``get_accounts_for_server`` keeps one account per user, whichever it lists first).
 
     Args:
         server: The server's URL; ``https://`` when it has no scheme.
@@ -139,7 +146,8 @@ def local_client(server: str = DEFAULT_SERVER) -> SpeckleClient | None:
         token works.
 
     Raises:
-        specklepy.logging.exceptions.SpeckleException: If the server cannot be reached.
+        specklepy.logging.exceptions.SpeckleException: If the server cannot be reached, or
+            fails otherwise than by refusing a token.
     """
     url = _server_url(server)
     with warnings.catch_warnings():
@@ -150,7 +158,7 @@ def local_client(server: str = DEFAULT_SERVER) -> SpeckleClient | None:
     host = urlsplit(url).netloc
     accounts = [account for account in accounts if _host(account.serverInfo.url) == host]
     for account in sorted(accounts, key=lambda account: not account.isDefault):
-        client = _client(url)
+        client = _client(_server_url(account.serverInfo.url))
         try:
             with warnings.catch_warnings():
                 # specklepy warns of a refused token and carries on; it is refused below
@@ -171,7 +179,8 @@ def token_client(token: str, server: str = DEFAULT_SERVER) -> SpeckleClient:
 
     The token is kept in the client only, never written to disk. Make it on the server
     under *Settings*, *Developer*, *Access tokens*, with the scopes ``profile:read`` and
-    ``streams:read`` (and ``streams:write`` to send).
+    ``streams:read`` (and ``streams:write`` to send). Over ``http`` to a host other than this
+    machine the token travels unencrypted, which a ``UserWarning`` says.
 
     Args:
         token: The personal access token.
@@ -186,6 +195,13 @@ def token_client(token: str, server: str = DEFAULT_SERVER) -> SpeckleClient:
         specklepy.logging.exceptions.SpeckleException: If the server cannot be reached.
     """
     url = _server_url(server)
+    parts = urlsplit(url)
+    if parts.scheme == "http" and not _is_loopback(parts.hostname):
+        warnings.warn(
+            f"{url} is plain http: the token goes to it unencrypted; use https",
+            UserWarning,
+            stacklevel=2,
+        )
     client = _client(url)
     try:
         client.authenticate_with_token(token)
@@ -223,7 +239,7 @@ def receive(
         version_id: The Speckle version id; the model's latest version by default.
         directory: Where the bundle goes. A new temporary folder by default, which is left
             for the caller (the bundle is read from it), and removed again if the version
-            has no bundle.
+            has no bundle or the receive fails.
 
     Returns:
         The version: ``objects`` and ``bundle`` for :class:`~specklewidgets.SpeckleViewer`
@@ -244,32 +260,37 @@ def receive(
             "limit may hide it"
         )
     bundle_only = BundleReference.is_reference(referenced)
+    # A bundle-only version's reference names its bundle, which is this version's
+    bundle_model, bundle_version = model_id, version.id
     if bundle_only:
-        # the reference names the bundle's version, which is this version
         reference = BundleReference.parse(referenced)
-        model_id, version_id = reference.model_id, reference.version_id
-    else:
-        version_id = version.id
+        bundle_model, bundle_version = reference.model_id, reference.version_id
     temporary = directory is None
     parent = Path(tempfile.mkdtemp(prefix="speckle-bundle-") if directory is None else directory)
-    folder = parent / model_id / version_id
-    files = download_bundle(client.account, project_id, model_id, version_id, str(folder))
-    if not files:
+    folder = parent / bundle_model / bundle_version
+    try:
+        files = download_bundle(
+            client.account, project_id, bundle_model, bundle_version, str(folder)
+        )
+        if not files and bundle_only:
+            raise ValueError(
+                f"version {version.id} exists only as a bundle, which {client.url} does not serve"
+            )
+        if bundle_only:
+            objects = bundle_objects(folder)
+        else:
+            objects = _server_objects(client, project_id, referenced)
+    except BaseException:
         if temporary:
             shutil.rmtree(parent, ignore_errors=True)
-        if bundle_only:
-            raise ValueError(
-                f"version {version_id} exists only as a bundle, which {client.url} does not serve"
-            )
-    if bundle_only:
-        objects = bundle_objects(folder)
-    else:
-        objects = _server_objects(client, project_id, referenced)
+        raise
+    if not files and temporary:
+        shutil.rmtree(parent, ignore_errors=True)
     return ReceivedVersion(
         server=client.url,
         project_id=project_id,
         model_id=model_id,
-        version_id=version_id,
+        version_id=version.id,
         objects=objects,
         bundle=folder if files else None,
         v3_route="projected" if bundle_only else "server",
@@ -357,9 +378,25 @@ def _client(url: str) -> SpeckleClient:
 def _refused(error: SpeckleException) -> bool:
     """Whether a failed request failed because the server refuses the token."""
     if isinstance(error, GraphQLException):
-        return True
+        return any(
+            isinstance(entry, dict)
+            and (entry.get("extensions") or {}).get("code") in _REFUSED_CODES
+            for entry in error.errors or []
+        )
     cause = getattr(error, "exception", None)
     return isinstance(cause, TransportServerError) and cause.code in _REFUSED
+
+
+def _is_loopback(host: str | None) -> bool:
+    """Whether a host name is this machine: ``localhost`` or a loopback address."""
+    if host is None:
+        return False
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def _version(

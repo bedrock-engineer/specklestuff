@@ -9,12 +9,16 @@ no token, skips them even with ``-m live``.
   (the server and project the bimpolars bucket names) and compares it with the bucket's frame.
 - The round trip sends the structural version's BimDataFrame to the server named by
   ``SPECKLEWIDGETS_TEST_SERVER`` (app.speckle.systems by default), into a new model of the
-  project ``SPECKLEWIDGETS_TEST_PROJECT``, or of a new private project when that is not set;
-  it deletes the model, or the project it made, afterwards.
+  project ``SPECKLEWIDGETS_TEST_PROJECT``, or of a new private project when that is not set.
+  It deletes the project it made, and with it the objects it sent; in
+  ``SPECKLEWIDGETS_TEST_PROJECT`` it deletes only the model, so the sent objects stay in that
+  project (Speckle deletes no objects with a model). A delete the server answers with False
+  warns, with the id, instead of failing the test.
 """
 
 import os
 import secrets
+import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -48,7 +52,10 @@ def signed_in(url: str) -> Any:
 
 @contextmanager
 def scratch_project(client: Any) -> Iterator[str]:
-    """The project of SPECKLEWIDGETS_TEST_PROJECT, or a new private one, deleted afterwards."""
+    """The project of SPECKLEWIDGETS_TEST_PROJECT, or a new private one, deleted afterwards.
+
+    Only a new project takes the objects sent into it along when it is deleted.
+    """
     project_id = os.environ.get(PROJECT_ENV)
     if project_id:
         yield project_id
@@ -65,7 +72,10 @@ def scratch_project(client: Any) -> Iterator[str]:
     try:
         yield project.id
     finally:
-        client.project.delete(project.id)
+        if not client.project.delete(project.id):
+            warnings.warn(
+                f"the test project {project.id} ({project.name}) is not deleted", stacklevel=1
+            )
 
 
 def test_receiving_the_arch_version_gives_the_bucket_frame(tmp_path):
@@ -102,4 +112,8 @@ def test_a_sent_bimdataframe_comes_back():
             assert received.version_id == version_id
             assert_kept(structural.frame, received.bimdataframe())
         finally:
-            client.model.delete(DeleteModelInput(id=model.id, project_id=project_id))
+            if not client.model.delete(DeleteModelInput(id=model.id, project_id=project_id)):
+                warnings.warn(
+                    f"the test model {model.id} ({model.name}) of {project_id} is not deleted",
+                    stacklevel=1,
+                )
