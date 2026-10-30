@@ -92,14 +92,16 @@ viewer.widget.surroundings  # {"ground_map": [...], "tiles": 2, "hidden_features
 uv add "specklewidgets @ git+https://github.com/bedrock-engineer/specklestuff"
 ```
 
-The package depends on anywidget and traitlets only; the built widget is in the wheel. The
-browser loads `@speckle/viewer` and three.js from [esm.sh](https://esm.sh), so the notebook needs
-to reach it. A BimDataFrame needs the extra `specklewidgets[bim]` (specklepy, which turns its
-rows into Speckle objects) and bimpolars, which any BimDataFrame comes with.
-`specklewidgets.geo` needs the extra `specklewidgets[geo]`: pyproj, which is what
-`bimpolars[geobim]` adds to bimpolars. The ground map's tiles come from
-tile.openstreetmap.org and the 3D BAG from api.pdok.nl, so the browser needs to reach both, and
-the notebook's Python api.pdok.nl.
+The package depends on anywidget and traitlets only. The built widgets are in the wheel, with
+`@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the wheel), so the notebook needs
+no network access; their licenses are in `specklewidgets/static/speckle-viewer.LICENSES.txt`.
+GeoSpeckleViewer's bundle adds 3d-tiles-renderer (2.9 MB, 0.8 MB of the wheel; licenses in
+`geo-speckle-viewer.LICENSES.txt`). A BimDataFrame needs the extra `specklewidgets[bim]`
+(specklepy, which turns its rows into Speckle objects) and bimpolars, which any BimDataFrame
+comes with. `specklewidgets.geo` needs the extra `specklewidgets[geo]`: pyproj, which is what
+`bimpolars[geobim]` adds to bimpolars. The ground map's tiles come from tile.openstreetmap.org
+and the 3D BAG from api.pdok.nl, so the browser needs to reach both, and the notebook's Python
+api.pdok.nl.
 
 ## API
 
@@ -198,29 +200,31 @@ the notebook's Python api.pdok.nl.
 
 ## Development
 
+The repo has two toolchains, npm for `js/` and uv for the Python, and
+[just](https://just.systems) runs both (`scoop install just`, `brew install just`, or
+`uv tool install rust-just`; on Windows it needs Git Bash's `sh`):
+
 ```sh
-npm install && uv sync
-npm run build       # tsc + vite: js/ → src/specklewidgets/static/ (committed)
-npm run dev         # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
-ENTRY=js/geo-speckle-viewer.ts npm run dev  # the same for GeoSpeckleViewer
-npm run typecheck && npm run test && npm run lint && npm run fmt:check
-uv run pytest && uv run mypy src && uv run ruff check && uv run ruff format --check
-npm run e2e         # the example notebooks in headless Chromium (see below)
+just                # lists the recipes
+just setup          # npm ci + uv sync --locked
+just build          # tsc + vite: js/ → src/specklewidgets/static/ (committed)
+just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
+just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
+just e2e            # the example notebooks in headless Chromium (see below)
 ```
 
-`npm run e2e` serves the example notebooks with marimo, opens them in headless Chromium (WebGL
+`just e2e` serves the example notebooks with marimo, opens them in headless Chromium (WebGL
 by SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
 errors, that the canvas is drawn on and that the viewer reports the element count and bounding
-box that `tests/test_rvt_advanced_sample.py` reaches without the viewer; and that each
-BimDataFrame of the architectural model draws one element per row with a mesh and spans the
-frame's `bbox` (`tests/test_rvt_arch_bimdataframe.py` has the numbers); and that Sixty5 in
+box that `tests/test_rvt_advanced_sample.py` reaches without the viewer; that each BimDataFrame
+of the architectural model draws one element per row with a mesh and spans the frame's `bbox`
+(`tests/test_rvt_arch_bimdataframe.py` has the numbers); that Sixty5 in
 `examples/sixty5_geo.py` stands on its BAG pand, on the ground map and among the 3D BAG with
-its own building left out. That last one runs twice: offline, with PDOK's APIs answered by
-`e2e/offline-pdok/sitecustomize.py` and the map and 3D BAG tiles made by `e2e/surroundings.mjs`,
-and live, where api.pdok.nl and tile.openstreetmap.org answer. It serves esm.sh from a mirror
-it bundles out of `node_modules`, so it runs where esm.sh is out of reach;
-`E2E_ESM_SH=network npm run e2e` loads the real esm.sh instead, as CI does. The models come
-through `bimpolars.data.fetch`: set `BIMPOLARS_DATA_DIR` to a local copy of the bimpolars
-bucket, or let it download (16 MB).
+its own building left out; and that the page asks no CDN for anything. The Sixty5 test runs
+twice: offline, with PDOK's APIs answered by `e2e/offline-pdok/sitecustomize.py` and the map
+and 3D BAG tiles made by `e2e/surroundings.mjs`, and live, where api.pdok.nl and
+tile.openstreetmap.org answer. The models come through `bimpolars.data.fetch`: set
+`BIMPOLARS_DATA_DIR` to a local copy of the bimpolars bucket, or let it download (16 MB, and
+45 MB for the IFC).
 
 `sandbox/oauth/` holds the earlier OAuth widget, which is not packaged.

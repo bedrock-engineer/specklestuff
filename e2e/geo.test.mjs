@@ -4,7 +4,7 @@
 // viewer reports: the elements it draws, the scene's bounding box, and its surroundings (the
 // map's plane, the tiles in, the buildings left out).
 //
-//   npm run build && npm run e2e
+//   just build && just e2e
 //
 // It runs twice. Offline, PDOK's APIs answer from e2e/offline-pdok/sitecustomize.py and the
 // browser's map and 3D BAG tiles from e2e/surroundings.mjs, so it runs where api.pdok.nl and

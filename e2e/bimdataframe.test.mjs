@@ -3,11 +3,11 @@
 // SpeckleViewer (the first by its materials, the second by class). Each viewer must draw one
 // element per row with a mesh and span the BimDataFrame's bbox.
 //
-//   npm run build && npm run e2e
+//   just build && just e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it) and spends 45 s in read_ifc. esm.sh is served from node_modules,
-// unless E2E_ESM_SH=network (see marimo.mjs).
+// bimpolars download it) and spends 45 s in read_ifc. A request to esm.sh fails the test, as
+// in notebook.test.mjs (see marimo.mjs).
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

@@ -13,7 +13,8 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `_esm`; the `GroundMap` and `Tileset` TypedDicts of its traits), `geo.py` (the surroundings
   of a georeferenced BimDataFrame: `osm_ground_map`, `pdok_3d_buildings`, `site_3d_tiles`,
   `bag_panden_under`; the `[geo]` extra), `static/` the built bundles (committed,
-  `minify: false`, so the wheel and `git+` installs need no node).
+  `minify: false`, so the wheel and `git+` installs need no node) and each bundle's
+  `<name>.LICENSES.txt`, the third-party licenses rollup-plugin-license collects.
 - `js/`: one entry per widget (`speckle-viewer.ts`, `geo-speckle-viewer.ts`) composing
   `js/lib/` modules: `viewer.ts` mounts the SpeckleViewer both entries share (models,
   selection, markers, the report) and hands back the viewer for the geo entry to add the
@@ -36,24 +37,27 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 
 ## Rules
 
-- `npm run build` after every change in `js/` and commit `src/specklewidgets/static/`.
-  `npm run typecheck`, `npm run test`, `npm run lint`, `npm run fmt:check`, `uv run pytest`,
-  `uv run mypy src`, `uv run ruff check` and `uv run ruff format --check` must pass.
-- One vite invocation per widget entry (`ENTRY=...`): anywidget loads each `_esm` as one
-  self-contained module, so entries must not share chunks.
-- `@speckle/viewer`, `@speckle/objectloader2`, `three` and `3d-tiles-renderer` are externals
-  on esm.sh at the exact versions in package.json's `dependencies`, plus the three.js example
-  modules in vite.config.js `SUBPATHS` (GLTFLoader, the meshopt decoder); every URL has
-  `?target=es2022` (vite.config.js `ESM_SH`), so that esm.sh serves the viewer's three.js and
-  ours as one module. A URL also pins, with `&deps=`, the externals among the package's own
-  and peer dependencies: without it esm.sh resolves the peer ranges on their own, and the
-  viewer's graph holds three.js 0.140.2, 0.172.0 and 0.186.1, and 3d-tiles-renderer (three is
-  its peer) gets the latest. `node e2e/esm-check.mjs` crawls the graph of every `ESM_SH` URL
-  and fails on a module that does not answer 200 (with esm.sh's error) or on two builds of one
-  external; CI runs it before the e2e. Bump the viewer and three together: three must be the
-  version the viewer's own range resolves to on esm.sh. 3d-tiles-renderer 0.3.46 is the last
-  for three.js 0.140; its npm dependencies (react, postprocessing, @takram) are for its r3f
-  and plugin entries, which we do not use.
+- just is the task runner (the repo has two toolchains, npm and uv): `just` lists the
+  recipes and CI runs the same ones. `just build` after every change in `js/` and commit
+  `src/specklewidgets/static/`; `just check` (`check-js` and `check-py`: typecheck, vitest,
+  oxlint, oxfmt, ruff, mypy, pytest) must pass. Recipes run in sh (Git Bash on Windows);
+  package.json scripts stay single commands without `rm -rf` or `VAR=x` prefixes, because npm
+  runs them in cmd.exe on Windows (`build.mjs` cleans and loops in node for that reason).
+- One vite build per widget entry (`vite.config.js` `ENTRIES`, looped by `build.mjs`):
+  anywidget loads each `_esm` as one self-contained module, so entries must not share chunks
+  or load relative assets. Each bundle carries its own viewer and three.js, so a notebook
+  with both widgets loads three.js twice (three warns; the widgets share no objects).
+- `@speckle/viewer`, `@speckle/objectloader2`, `three` and `3d-tiles-renderer` are bundled in,
+  at the exact versions in package.json's `dependencies`. npm dedupes three to one copy, which
+  the viewer's three-mesh-bvh and troika dependencies and 3d-tiles-renderer (three is its peer)
+  resolve to as well, so the viewer, the tiles and our markers share one three.js (esm.sh
+  resolved those peer ranges to 0.172.0 and 0.186.1, and its builds failed for hours on
+  2026-10-30, which is why the widgets no longer load from it). Bump the viewer, objectloader2
+  and three together, and check that `npm ls three --all` shows one version (it exits 1 on
+  the peer ranges of 3d-tiles-renderer's unused dependencies, which want three >= 0.144).
+  3d-tiles-renderer 0.3.46 is the last for three.js 0.140; its npm dependencies (react,
+  postprocessing, @takram) are for its r3f and plugin entries, which we do not import, and
+  stay out of the bundle.
 - The Python core depends on anywidget and traitlets only and imports nothing else.
   `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
   bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
@@ -168,17 +172,15 @@ origin is at 5.4601517 E, 51.4464756 N, ellipsoidal height 62.544 m (NAP 18.625 
 NLGEO2018's 43.919 m) with the NSGI grids, and at 5.460153 E, 51.446476 N, 18.625 m without
 them.
 
-esm.sh, api.pdok.nl, tile.openstreetmap.org and cdn.proj.org are blocked from the cloud
+The widgets load nothing from a CDN, so `just e2e` runs in the cloud containers as it does in
+CI. The tests fail on any request to esm.sh and on three's "Multiple instances of Three.js"
+warning. api.pdok.nl, tile.openstreetmap.org and cdn.proj.org are blocked from the cloud
 containers. With the PROJ network on and no grids, bimpolars fails to transform there ("did not
 transform"), so before the geo e2e put `nl_nsgi_nlgeo2018.tif` and `nl_nsgi_rdtrans2018.tif`
 from https://raw.githubusercontent.com/OSGeo/PROJ-data/master/nl_nsgi/ (GitHub answers) into
-`pyproj.datadir.get_user_data_dir()` (`~/.local/share/proj`). `npm run e2e` serves esm.sh from a
-mirror bundled out of `node_modules` (`e2e/esm-mirror.mjs`), and the geo test's offline run
-answers PDOK and OSM itself (`e2e/offline-pdok/` goes on the kernel's PYTHONPATH: its
-`sitecustomize.py` patches `urllib.request.urlopen` for api.pdok.nl), so they run there as well;
-the live run and `tests/test_geo.py`'s `pdok` tests skip there and run on GitHub Actions. CI
-sets `E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
-fails on three's "Multiple instances of Three.js" warning (which also guards 3d-tiles-renderer's
-`&deps=three`). The e2e files run one after the other (`--test-concurrency=1`): each starts
-marimo and a SwiftShader Chromium, through `e2e/marimo.mjs`, which holds the `E2E_ESM_SH`
-switch.
+`pyproj.datadir.get_user_data_dir()` (`~/.local/share/proj`). The geo test's offline run answers
+PDOK and OSM itself (`e2e/offline-pdok/` goes on the kernel's PYTHONPATH: its
+`sitecustomize.py` patches `urllib.request.urlopen` for api.pdok.nl), so it runs there as well;
+the live run and `tests/test_geo.py`'s `pdok` tests skip there and run on GitHub Actions. The
+e2e files run one after the other (`--test-concurrency=1`): each starts marimo and a
+SwiftShader Chromium through `openNotebook` in `e2e/marimo.mjs`.
