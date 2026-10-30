@@ -33,9 +33,21 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `e2e/geo.test.mjs` opens it offline (`e2e/offline-pdok/sitecustomize.py` answers PDOK's
   APIs in the kernel, `e2e/surroundings.mjs` serves the map's tiles and the 3D BAG's tile of
   boxes in the browser) and live where PDOK and OSM answer.
-  `e2e/marimo.mjs` serves a notebook and opens it for all three.
+  `e2e/marimo.mjs` serves a notebook and opens it for all three (`openPage` opens any page:
+  the demo page's test uses it).
   `examples/speckle_receive_send.py`: sign in, receive a version, compare it with the bucket's
   frame, send it back; no e2e test (it needs a server).
+- `site/`: the demo page for GitHub Pages (`.github/workflows/pages.yml`, on every push to
+  main; bimpolars' own Pages workflow builds the same page from this repository's main), the
+  layout side by side (stacked below 900 px), as joost chose. `sixty5.py` writes its data into
+  `site/public/data/` (gitignored): GeoSpeckleViewer's traits (`viewer.json`, the model as
+  `objects.json.gz`) and the drawn rows' `geog` footprints in 2D (`footprints.geojson`, with
+  id, class, name, storey and the storey's elevation in metres; `outline.geojson` their
+  union). `main.ts` calls the widget's own `render` with a `StaticModel`
+  (`static-model.ts`: an AnyModel without a kernel, firing `change:<trait>` on `set`), sets
+  `height` to the pane's, and follows `selected` with `footprint-map.ts` (MapLibre on PDOK's
+  luchtfoto, or BRT). `e2e/site.test.mjs` writes the data offline, builds the page into
+  `e2e/.out/site` and serves it as Pages does.
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 - `CONTEXT.md`: the glossary (model, element, definition, member, placement).
 
@@ -127,6 +139,16 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   Python >= 3.12. Trait names stay the JSON wire format; facades only translate arguments.
 - The viewer works in metres: `scene_bbox` and `markers` are in metres whatever the models'
   units.
+- The demo page is the widget, not a copy: it imports `js/geo-speckle-viewer.ts` and calls
+  its `render` with only `model` and `el`, so a widget's `render` reads nothing else. Pages
+  runs no Python, so whatever the page needs from Python is computed by `site/sixty5.py` at
+  build time. maplibre-gl is a devDependency (the page's, never in a widget bundle); MapLibre
+  6 loads its worker from its own folder, which the bundle is not, so `footprint-map.ts`
+  passes it `maplibre-gl/dist/maplibre-gl-worker.mjs?url`, and a server must send `.mjs` as
+  JavaScript (GitHub Pages does). The model goes out as `objects.json.gz`, served as it is
+  (Pages sends no Content-Encoding for it), and the page gunzips it as the widget does a
+  Bytes trait. URLs are relative (`base: "./"`), so the page works under any repository's
+  path.
 - `object_count` is the number of elements the viewer draws, as a click selects them (nearest
   atomic node, then `elementOf`); `tests/test_rvt_advanced_sample.py` reaches the same numbers
   by a Python traversal, and the scene bbox from `bimpolars.read_speckle`. Change both sides
@@ -217,6 +239,11 @@ origin is at 5.4601517 E, 51.4464756 N, ellipsoidal height 62.544 m (NAP 18.625 
 NLGEO2018's 43.919 m) with the NSGI grids, and at 5.460153 E, 51.446476 N, 18.625 m without
 them. The live e2e (CI, 2026-10-30) draws the 3D BAG's Sixty5 from 0.04 to 57.28 m: PDOK's
 heights are ellipsoidal, and with the grids the 3D BAG stands on the map.
+
+The demo page (`site/`, `e2e/site.test.mjs`, 80 s in the cloud): `site/sixty5.py` takes 25 s
+and writes 1363 footprints (every drawn row has one), `footprints.geojson` 1.6 MB and
+`objects.json.gz` 1.2 MB; the page's bundle is 3.0 MB (1.0 MB gzipped) and MapLibre's worker
+0.5 MB.
 
 The server tests (`tests/test_server.py`, 31 tests, 38 s): receiving the bundle-only arch
 version from the fake server gives the bucket's frame (`BimDataFrame.equals`), and its non-root
