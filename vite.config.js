@@ -2,15 +2,17 @@ import { defineConfig } from "vite";
 import anywidget from "@anywidget/vite";
 import license from "rollup-plugin-license";
 
-// One entry per widget. anywidget loads each _esm file as a self-contained module (relative
-// imports don't resolve from a blob URL), so every entry gets its own vite build: a single
-// multi-entry build would split shared code into chunks the entries import relatively.
-// build.mjs loops over the entries.
-export const ENTRIES = ["js/speckle-viewer.ts", "js/geo-speckle-viewer.ts"];
+// One entry per widget, both in the npm package's source. anywidget loads each _esm file as a
+// self-contained module (relative imports don't resolve from a blob URL), so every entry gets
+// its own vite build: a single multi-entry build would split shared code into chunks the
+// entries import relatively. build.mjs loops over the entries.
+const SRC = "packages/geospeckle-viewer/src";
+export const ENTRIES = [`${SRC}/speckle-viewer.ts`, `${SRC}/geospeckle-viewer.ts`];
 export const OUT_DIR = "src/specklewidgets/static";
 
 // Packages that ship no license file get a pointer instead of the text. The Apache-2.0 text,
-// for the @speckle packages, is the package's own LICENSE.
+// for the @speckle packages, is the package's own LICENSE. The entries' own package is ours,
+// not third-party.
 function licenseReport(dependencies) {
   const header =
     "Third-party software bundled into this widget, with the license each package ships.\n" +
@@ -18,6 +20,7 @@ function licenseReport(dependencies) {
   return (
     header +
     dependencies
+      .filter((dependency) => dependency.name !== "@bedrock-engineer/geospeckle-viewer")
       .map((dependency) =>
         dependency.licenseText
           ? dependency.text()
@@ -62,6 +65,6 @@ export function widgetConfig(entry, { watch = false } = {}) {
 
 export default defineConfig({
   ...widgetConfig(process.env.ENTRY ?? ENTRIES[0]),
-  // e2e/ holds node:test files that run against a browser, through npm run e2e
-  test: { include: ["js/**/*.test.ts", "site/**/*.test.ts"] },
+  // e2e/ holds node:test files that run against a browser, through pnpm run e2e
+  test: { include: ["packages/*/src/**/*.test.ts", "site/**/*.test.ts"] },
 });

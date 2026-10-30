@@ -3,6 +3,7 @@
   "ignorePatterns": [
     "src/specklewidgets/static/**",
     "sandbox/**",
+    "packages/*/dist/**",
     "site/dist/**",
     "site/public/**"
   ],

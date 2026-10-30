@@ -8,29 +8,33 @@ model, element, definition, member and placement are defined in [CONTEXT.md](CON
 
 - `src/specklewidgets/`: the Python package, the single source of truth for the Python API;
   `static/` holds the built bundles, committed.
-- `js/`: one entry per widget, composing `js/lib/` modules.
+- `packages/geospeckle-viewer/`: the npm package `@bedrock-engineer/geospeckle-viewer`, the
+  only JS package (not published yet, issue #15): one widget entry per widget in `src/`,
+  composing `src/lib/` modules, and `src/index.ts`, the API for web pages.
 - `examples/`: marimo notebooks, each with an e2e test in `e2e/`.
-- `site/`: the demo page for GitHub Pages, built on the widget's own `render`.
+- `site/`: the demo page for GitHub Pages, a pnpm workspace package that uses the npm package.
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 
 ## Commands
 
-just is the task runner (the repo has two toolchains, npm and uv): `just` lists the recipes,
+just is the task runner (the repo has two toolchains, pnpm and uv): `just` lists the recipes,
 and CI runs the same ones.
 
-- `just build` after every change in `js/`, and commit `src/specklewidgets/static/`.
+- `just build` after every change in `packages/geospeckle-viewer/src`, and commit
+  `src/specklewidgets/static/`.
 - `just check` (`check-js` and `check-py`: typecheck, vitest, oxlint, oxfmt, ruff, mypy,
   pytest) passes on every commit; `just e2e` runs the example notebooks in headless Chromium.
 - Recipes run in sh (Git Bash on Windows). package.json scripts stay single commands, with no
-  `rm -rf` and no `VAR=x` prefixes, because npm runs them in cmd.exe on Windows (`build.mjs`
+  `rm -rf` and no `VAR=x` prefixes, because pnpm runs them in cmd.exe on Windows (`build.mjs`
   cleans and loops in node for that reason).
 
 ## Rules
 
 - Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
   Python >= 3.12.
-- Trait names stay the JSON wire format; facades only translate arguments. `js/lib/types.ts` is
-  the TS mirror of the trait comments: change them together.
+- Trait names stay the JSON wire format; facades only translate arguments.
+  `packages/geospeckle-viewer/src/lib/types.ts` is the TS mirror of the trait comments, and
+  `src/index.ts`'s defaults mirror the traits' defaults: change them together.
 - The Python core depends on anywidget and traitlets only and imports nothing else. Each
   module with more lives behind an extra: `specklewidgets.bim` (`[bim]`: specklepy, plus the
   bimpolars, numpy and polars any BimDataFrame brings; bimpolars stays a dev dependency, as it
@@ -43,8 +47,8 @@ and CI runs the same ones.
 
 Read the doc of an area before you change its code or write its tests:
 
-- [The JS bundles](docs/agents/bundle.md): the vite builds, the bundled dependencies, bumping
-  the viewer and three.js.
+- [The JS](docs/agents/bundle.md): the pnpm workspace, the npm package, the widget bundles,
+  the dependencies, bumping the viewer and three.js.
 - [SpeckleViewer](docs/agents/viewer.md): `@speckle/viewer`'s quirks, `models_gz`,
   `object_count` and `scene_bbox`.
 - [The BimDataFrame intake](docs/agents/bim.md): `specklewidgets.bim`, and what a round trip

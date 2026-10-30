@@ -1,8 +1,9 @@
-# specklewidgets is a Python package with a JS widget inside, so it has two toolchains: npm
-# for js/ and uv for the Python. `just` lists the recipes; CI runs the same ones.
+# specklewidgets is a Python package with a JS widget inside, so it has two toolchains: pnpm
+# for the npm package in packages/geospeckle-viewer and the demo page in site/, and uv for the
+# Python. `just` lists the recipes; CI runs the same ones.
 #
 # Recipes run in sh (Git Bash on Windows). The package.json scripts they call stay single
-# commands, because npm runs those in cmd.exe on Windows.
+# commands, because pnpm runs those in cmd.exe on Windows.
 
 # List the recipes
 default:
@@ -11,31 +12,35 @@ default:
 # Install the locked JS and Python dependencies
 setup: setup-js setup-py
 
-# npm ci: the JS dependencies of package-lock.json
+# pnpm install: the JS dependencies of pnpm-lock.yaml
 setup-js:
-    npm ci
+    pnpm install --frozen-lockfile
 
 # uv sync: the Python dependencies of uv.lock
 setup-py:
     uv sync --locked
 
-# Type-check js/ and bundle it into src/specklewidgets/static/ (committed)
+# Type-check and bundle the widgets into src/specklewidgets/static/ (committed)
 build:
-    npm run build
+    pnpm run build
+
+# Build the npm package into packages/geospeckle-viewer/dist (not committed)
+build-npm:
+    pnpm --filter @bedrock-engineer/geospeckle-viewer run build
 
 # Rebuild on change; ANYWIDGET_HMR=1 hot-reloads the notebook
 dev:
-    npm run dev
+    pnpm run dev
 
 # Every check except the e2e
 check: check-js check-py
 
-# Types, lint, format and unit tests of js/ and site/
+# Types, lint, format and unit tests of packages/ and site/
 check-js:
-    npm run typecheck
-    npm run lint
-    npm run fmt:check
-    npm run test
+    pnpm run typecheck
+    pnpm run lint
+    pnpm run fmt:check
+    pnpm run test
 
 # Lint, format, types and tests of the Python package
 check-py:
@@ -44,18 +49,18 @@ check-py:
     uv run mypy src
     uv run pytest
 
-# Fail when the committed bundle is not the build of the committed js/
+# Fail when the committed bundle is not the build of the committed packages/geospeckle-viewer
 check-bundle: build
     git diff --exit-code src/specklewidgets/static
 
-# Format js/ and the Python
+# Format the JS and the Python
 fmt:
-    npm run fmt
+    pnpm run fmt
     uv run ruff format
 
-# The example notebooks and the demo page in headless Chromium (`npx playwright install chromium` once)
+# The example notebooks and the demo page in headless Chromium (`pnpm exec playwright install chromium` once)
 e2e:
-    npm run e2e
+    pnpm run e2e
 
 # The demo page's data: Sixty5 from the bimpolars bucket, the OSM map and PDOK's 3D BAG
 site-data:
@@ -63,11 +68,11 @@ site-data:
 
 # The demo page for GitHub Pages, into site/dist
 site: site-data
-    npm run site
+    pnpm run site
 
 # Serve the demo page with hot reload (after `just site-data`)
 site-dev:
-    npm run site:dev
+    pnpm run site:dev
 
 # Receive and send on a real Speckle server with this machine's Speckle account (skips without one)
 live:

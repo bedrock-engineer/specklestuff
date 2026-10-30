@@ -15,8 +15,9 @@ always move the camera or the map (joost, on his phone). `just site-data`,
   (`viewer.json`, the model as `objects.json.gz`) and the drawn rows' `geog` footprints in 2D
   (`footprints.geojson`, with id, class, name, storey and the storey's elevation in metres;
   `outline.geojson` their union).
-- `main.ts` calls the widget's own `render` with a `StaticModel` (`static-model.ts`: an AnyModel
-  without a kernel, firing `change:<trait>` on `set`), sets `height` to the pane's, and follows
+- `main.ts` runs the widget with `mountGeoSpeckleViewer` from `@bedrock-engineer/geospeckle-viewer`
+  (a `StaticModel`: an AnyModel without a kernel, firing `change:<trait>` on `set`), sets
+  `height` to the pane's, and follows
   `selected` with `footprint-map.ts` (MapLibre on PDOK's BRT, or its luchtfoto; the building's
   outline dotted red). `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
   viewer and the map follow their panes' sizes with ResizeObservers of their own.
@@ -29,11 +30,13 @@ always move the camera or the map (joost, on his phone). `just site-data`,
 
 ## Rules
 
-- The demo page is the widget, not a copy: it imports `js/geo-speckle-viewer.ts` and calls its
-  `render` with only `model` and `el`, so a widget's `render` reads nothing else.
+- The demo page is the widget, not a copy: `site/` is a workspace package (`site/package.json`)
+  that imports `@bedrock-engineer/geospeckle-viewer` by name, as any other web app would, and
+  `mountGeoSpeckleViewer` calls the widget's `render` with only `model` and `el`, so a widget's
+  `render` reads nothing else. Add the model's handlers before awaiting `loaded`.
 - Pages runs no Python, so whatever the page needs from Python is computed by `site/sixty5.py`
   at build time.
-- maplibre-gl is a devDependency (the page's, never in a widget bundle); MapLibre 6 loads its
+- maplibre-gl is a dependency of `site/` only, never in a widget bundle; MapLibre 6 loads its
   worker from its own folder, which the bundle is not, so `footprint-map.ts` passes it
   `maplibre-gl/dist/maplibre-gl-worker.mjs?url`, and a server must send `.mjs` as JavaScript
   (GitHub Pages does).

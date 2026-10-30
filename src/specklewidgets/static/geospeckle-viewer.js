@@ -58976,7 +58976,7 @@ function planeBounds(groundMap) {
   const ys2 = corners.map(([, y]) => y);
   return [Math.min(...xs2), Math.min(...ys2), Math.max(...xs2), Math.max(...ys2)];
 }
-const geoSpeckleViewer = {
+const geospeckleViewer = {
   async render({ model, el: el2 }) {
     const mounted = await mountSpeckleViewer(model, el2);
     const { viewer, container } = mounted;
@@ -59062,5 +59062,5 @@ const geoSpeckleViewer = {
   }
 };
 export {
-  geoSpeckleViewer as default
+  geospeckleViewer as default
 };

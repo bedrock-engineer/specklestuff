@@ -1,0 +1,48 @@
+{
+  "name": "@bedrock-engineer/geospeckle-viewer",
+  "version": "0.1.0",
+  "description": "Speckle's web viewer fed with Speckle v3 objects instead of a server, on a ground map among 3D Tiles",
+  "keywords": [
+    "3d-tiles",
+    "anywidget",
+    "bim",
+    "speckle"
+  ],
+  "homepage": "https://github.com/bedrock-engineer/specklestuff/tree/main/packages/geospeckle-viewer",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bedrock-engineer/specklestuff.git",
+    "directory": "packages/geospeckle-viewer"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && tsc",
+    "prepack": "vite build && tsc"
+  },
+  "dependencies": {
+    "3d-tiles-renderer": "0.3.46",
+    "@anywidget/types": "^0.4.0",
+    "@speckle/objectloader2": "2.31.14",
+    "@speckle/viewer": "2.31.14",
+    "three": "0.140.2"
+  },
+  "devDependencies": {
+    "@types/three": "0.140.0"
+  }
+}

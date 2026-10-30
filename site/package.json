@@ -1,0 +1,12 @@
+{
+  "name": "specklestuff-site",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@bedrock-engineer/geospeckle-viewer": "workspace:*",
+    "maplibre-gl": "~6.15.0"
+  },
+  "devDependencies": {
+    "@types/geojson": "7946.0.16"
+  }
+}

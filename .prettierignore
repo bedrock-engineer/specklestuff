@@ -3,5 +3,6 @@ sandbox/
 site/dist/
 site/public/
 uv.lock
-package-lock.json
+pnpm-lock.yaml
+packages/*/dist/
 pyproject.toml
