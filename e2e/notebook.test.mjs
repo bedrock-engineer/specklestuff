@@ -79,6 +79,20 @@ let marimo;
 let browser;
 let page;
 const errors = [];
+// Everything the page logs and every request that fails, for the message of a test that
+// times out before it gets to the errors
+const log = [];
+
+/** Waits for a locator, and on timeout fails with what the page logged */
+async function waitFor(locator, timeout) {
+  try {
+    await locator.waitFor({ timeout });
+  } catch (error) {
+    await mkdir(OUT, { recursive: true });
+    await page.screenshot({ path: path.join(OUT, "page.png"), fullPage: true }).catch(() => {});
+    assert.fail(`${error.message}\n\nThe page logged:\n${log.slice(-40).join("\n")}`);
+  }
+}
 
 before(async () => {
   if (!ESM_SH_NETWORK) {
@@ -111,6 +125,7 @@ before(async () => {
   }
   page = await context.newPage();
   page.on("console", (message) => {
+    log.push(`${message.type()}: ${message.text()}`);
     // A second three.js (esm.sh resolving the viewer's three to another module than ours) only
     // warns, and most of the scene still draws
     if (
@@ -120,7 +135,18 @@ before(async () => {
       errors.push(message.text());
     }
   });
-  page.on("pageerror", (error) => errors.push(`${error.name}: ${error.message}`));
+  page.on("pageerror", (error) => {
+    errors.push(`${error.name}: ${error.message}`);
+    log.push(`pageerror: ${error.name}: ${error.message}`);
+  });
+  page.on("requestfailed", (request) =>
+    log.push(`requestfailed: ${request.url()} (${request.failure()?.errorText})`),
+  );
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      log.push(`HTTP ${response.status()}: ${response.url()}`);
+    }
+  });
   await page.goto(url);
 });
 
@@ -132,7 +158,7 @@ after(async () => {
 test("the three models render in one viewer", { timeout: 10 * MINUTE }, async () => {
   // The report cell reruns when the viewer reports; 0 until the models are in
   const report = page.locator("#viewer-report:not([data-object-count='0'])");
-  await report.waitFor({ timeout: 8 * MINUTE });
+  await waitFor(report, 8 * MINUTE);
 
   assert.equal(Number(await report.getAttribute("data-object-count")), OBJECT_COUNT);
   const bbox = JSON.parse(await report.getAttribute("data-scene-bbox"));
@@ -160,6 +186,7 @@ test("the three models render in one viewer", { timeout: 10 * MINUTE }, async ()
 
 test("a click selects an element", { timeout: 5 * MINUTE }, async () => {
   const canvas = page.locator("canvas").first();
+  await waitFor(canvas, MINUTE);
   const { width, height } = await canvas.boundingBox();
   const selected = page.locator("#viewer-selected");
   // The models fill the middle of the view; try a few points there until one hits

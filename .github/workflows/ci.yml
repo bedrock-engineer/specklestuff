@@ -66,3 +66,10 @@ jobs:
       - run: npm run e2e
         env:
           E2E_ESM_SH: network
+      # The canvas, or the page when the viewer never reported
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e
+          path: e2e/.out/
+          if-no-files-found: ignore
