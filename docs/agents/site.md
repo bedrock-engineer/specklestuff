@@ -3,9 +3,10 @@
 `site/` is the demo page for GitHub Pages (`.github/workflows/pages.yml`, on every push to main;
 bimpolars' own Pages workflow builds the same page from this repository's main): Sixty5 in a
 GeoSpeckleViewer beside a map of the clicked element's footprint, the layout side by side with a
-draggable separator, as joost chose. The instructions are a strip over the panes on their own
-grid columns, a sentence split at the separator ("Click a BIM element | to see its footprint on
-the map"), so that it moves with it. Below 900 px the panes stack, without a separator, beside a
+draggable separator, as joost chose. The instructions are a strip over the panes that reads as
+one sentence ("Click a BIM element to see its footprint on the map"), split on two grid columns
+at the word space over the separator's middle so that it moves with it; the separator stops under
+the strip (joost: "should really read as a single sentence"). Below 900 px the panes stack, without a separator, beside a
 strip on the right (`.rail`) that holds the instructions written vertically and is the only place
 on the panes where a swipe scrolls the page: the panes are `touch-action: none`, so their touches
 always move the camera or the map (joost, on his phone). `just site-data`,
