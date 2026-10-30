@@ -5,10 +5,10 @@ A model is a Speckle version's v3 objects, its root first, as
 models trip the viewer (``@speckle/viewer`` 2.31.14), and :func:`models_gz` adjusts them:
 
 - Several models load side by side in one viewer, but the ids of their instance definitions
-  are only unique within a model: the Revit connector numbers them ``def-1``, ``def-2``, ... in
-  every model, and their members ``def-geo-0``, ``nested-inst-0``, ... So the ids of the
-  definitions and their members get the model's root id as a prefix, everywhere the model
-  names them.
+  are only unique within a model: the projection of a Revit bundle numbers them ``def-1``,
+  ``def-2``, ... in every model, and their members ``def-geo-0``, ``nested-inst-0``, ... So the
+  ids of the definitions and their members get the model's root id as a prefix, everywhere the
+  model names them.
 - The viewer finds the members of the definitions by walking the model's tree and counting
   down the objects that carry a member id, and stops when the count reaches zero. specklepy's
   projection of a bundle gives a member's DataObject (named ``geometry``) and the Mesh it
@@ -77,14 +77,20 @@ def models_gz(*models: Model, compresslevel: int = 6) -> bytes:
         changed.
 
     Raises:
-        ValueError: If a model has no objects, its first object is not a root with an
-            ``id``, or two models share a root.
+        ValueError: If a model is not a list of objects, has none, its first object is not a
+            root with an ``id``, or two models share a root.
     """
     packed = []
     roots: set[str] = set()
     for index, model in enumerate(models):
         objects = json.loads(model) if isinstance(model, str) else model
-        if not objects or not isinstance(objects[0], Mapping) or "id" not in objects[0]:
+        if (
+            not isinstance(objects, Sequence)
+            or isinstance(objects, str)
+            or not objects
+            or not isinstance(objects[0], Mapping)
+            or "id" not in objects[0]
+        ):
             raise ValueError(f"model {index} has no root object with an id first")
         root_id = str(objects[0]["id"])
         if root_id in roots:

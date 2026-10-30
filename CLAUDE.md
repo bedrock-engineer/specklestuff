@@ -121,5 +121,8 @@ the upload to joost's account small. The cloud containers cannot reach app.speck
 so the live tests have not run there (they skip); the fake covers the same calls offline.
 
 esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. The two e2e files run one
-after the other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium.
+of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. CI sets
+`E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
+fails on three's "Multiple instances of Three.js" warning. The two e2e files run one after the
+other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium, through
+`e2e/marimo.mjs`, which holds the `E2E_ESM_SH` switch.

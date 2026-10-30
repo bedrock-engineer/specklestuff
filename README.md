@@ -93,8 +93,11 @@ sending need the extra `specklewidgets[server]` (specklepy with its bundle reade
   `BimDataFrame`, which `bim_objects` turns into v3 objects. `color` colours the elements of the
   BimDataFrames by a column or a polars expression instead of by their materials. Clicking an
   element selects it, shift-click adds to the selection and a click on nothing clears it; a
-  click on an instance selects its InstanceProxy, whose applicationId is the element's. Its
-  traits:
+  click on an instance selects its InstanceProxy, whose applicationId is the element's, with
+  `-instance-<n>` appended when the element has several placements or geometry of its own
+  (`read_speckle` strips it to key its rows), and whose `definitionId` has the model's root id
+  in front (`<root id>/def-12`, see `models_gz`); a click on a BimDataFrame's element reports
+  its row's `id` as `applicationId`. Its traits:
   - `objects_gz`: the packed models (`models_gz`); set it to load other models.
   - `height` (pixels; `None`, the default, follows the width by `aspect_ratio`, 16:9).
   - `markers`: axes with a label, `[{"name", "position": [x, y, z], "size"}]` in metres.
@@ -178,7 +181,8 @@ errors, that the canvas is drawn on and that the viewer reports the element coun
 box that `tests/test_rvt_advanced_sample.py` reaches without the viewer; and that each
 BimDataFrame of the architectural model draws one element per row with a mesh and spans the
 frame's `bbox` (`tests/test_rvt_arch_bimdataframe.py` has the numbers). It serves esm.sh from a
-mirror it bundles out of `node_modules`, so it runs where esm.sh is out of reach. The models
+mirror it bundles out of `node_modules`, so it runs where esm.sh is out of reach;
+`E2E_ESM_SH=network npm run e2e` loads the real esm.sh instead, as CI does. The models
 come through `bimpolars.data.fetch`: set `BIMPOLARS_DATA_DIR` to a local copy of the bimpolars
 bucket, or let it download (16 MB).
 
