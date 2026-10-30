@@ -132,7 +132,7 @@ test("the three models render in one viewer", { timeout: 10 * MINUTE }, async ()
     ),
   );
 
-  // Software rendering of 1.2 million triangles takes its time for a frame
+  // SwiftShader takes its time to draw a frame of three quarters of a million triangles
   const png = await page
     .locator("canvas")
     .first()
