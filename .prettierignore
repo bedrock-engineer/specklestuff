@@ -1,0 +1,5 @@
+src/specklewidgets/static/
+sandbox/
+uv.lock
+package-lock.json
+pyproject.toml

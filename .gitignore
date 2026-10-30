@@ -1,8 +1,23 @@
-node_modules/
-speckle_widgets/static/
-dist/
-.venv/
+# Python-generated files
 __pycache__/
-*.pyc
-*.egg-info/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# marimo
+__marimo__/
+
 .DS_Store
+
+# Node
+node_modules/
+
+# The e2e test's local esm.sh mirror and screenshots
+e2e/.mirror/
+e2e/.out/
