@@ -1,17 +1,20 @@
-import os
-import pathlib
+"""Speckle OAuth in a notebook: the first stab, kept as a sandbox and not packaged.
+
+``auth.js`` opens a popup to the Speckle server, ``callback.html`` (hosted on GitHub Pages and
+registered as the Speckle app's redirect URI) posts the access code back, and the widget
+exchanges it for a token. See ``demo.py``.
+"""
+
+from pathlib import Path
+
 import anywidget
 import traitlets
 
-DEV = os.environ.get("ANYWIDGET_HMR")
-
 
 class SpeckleAuthWidget(anywidget.AnyWidget):
-    _esm = (
-        "http://localhost:5173/src/auth.js"
-        if DEV
-        else pathlib.Path(__file__).parent / "static" / "auth.js"
-    )
+    """Signs in to a Speckle server with OAuth and holds the token."""
+
+    _esm = Path(__file__).with_name("auth.js")
 
     server_url = traitlets.Unicode("https://app.speckle.systems").tag(sync=True)
     app_id = traitlets.Unicode("").tag(sync=True)
