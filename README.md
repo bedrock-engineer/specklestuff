@@ -49,7 +49,10 @@ to reach it.
   or a sequence of models; a model is a Speckle version's v3 objects, its root first, parsed (as
   `bimpolars.speckle.version_objects` gives them) or as JSON array text. Clicking an element
   selects it, shift-click adds to the selection and a click on nothing clears it; a click on an
-  instance selects its InstanceProxy, whose applicationId is the element's. Its traits:
+  instance selects its InstanceProxy, whose applicationId is the element's, with
+  `-instance-<n>` appended when the element has several placements or geometry of its own
+  (`read_speckle` strips it to key its rows), and whose `definitionId` has the model's root id
+  in front (`<root id>/def-12`, see `models_gz`). Its traits:
   - `objects_gz`: the packed models (`models_gz`); set it to load other models.
   - `height` (pixels; `None`, the default, follows the width by `aspect_ratio`, 16:9).
   - `markers`: axes with a label, `[{"name", "position": [x, y, z], "size"}]` in metres.
@@ -84,7 +87,8 @@ npm run e2e         # the example notebook in headless Chromium (see below)
 SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
 errors, that the canvas is drawn on and that the viewer reports the element count and bounding
 box that `tests/test_rvt_advanced_sample.py` reaches without the viewer. It serves esm.sh from a
-mirror it bundles out of `node_modules`, so it runs where esm.sh is out of reach. The models
+mirror it bundles out of `node_modules`, so it runs where esm.sh is out of reach;
+`E2E_ESM_SH=network npm run e2e` loads the real esm.sh instead, as CI does. The models
 come through `bimpolars.data.fetch`: set `BIMPOLARS_DATA_DIR` to a local copy of the bimpolars
 bucket, or let it download (16 MB).
 

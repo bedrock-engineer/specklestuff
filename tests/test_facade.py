@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from speckle_objects import revit_like, unpack
 from specklewidgets import Marker, SpeckleViewer, models_gz
 
@@ -17,6 +19,11 @@ def test_a_sequence_of_models_packs_them_all():
 
 def test_json_text_is_one_model(model):
     assert unpack(SpeckleViewer(json.dumps(model)).objects_gz) == unpack(models_gz(model))
+
+
+def test_one_object_is_not_a_model():
+    with pytest.raises(ValueError, match="model 0 has no root"):
+        SpeckleViewer({"id": "root-a"})
 
 
 def test_no_models_leave_the_viewer_empty():

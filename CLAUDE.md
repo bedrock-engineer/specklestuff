@@ -66,4 +66,6 @@ mep 6942 (13,546 together); scene bbox x -116.6763..202.3891, y -121.7323..75.72
 z -7.2..15.2066 m; `models_gz` of the three: 53 MB of JSON, 6.0 MB gzipped, 2 s.
 
 esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well.
+of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. CI sets
+`E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
+fails on three's "Multiple instances of Three.js" warning.

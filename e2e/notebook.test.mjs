@@ -5,7 +5,8 @@
 //   npm run build && npm run e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs).
+// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs), unless
+// E2E_ESM_SH=network: then the browser loads the real esm.sh, as a user's does (CI sets it).
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -16,6 +17,8 @@ import { chromium } from "playwright";
 import { buildMirror, routeEsmSh } from "./esm-mirror.mjs";
 
 const ROOT = path.join(import.meta.dirname, "..");
+// Whether the browser loads the real esm.sh instead of the mirror
+const ESM_SH_NETWORK = process.env.E2E_ESM_SH === "network";
 // The canvas as the test saw it, for a look when it fails (gitignored)
 const OUT = path.join(import.meta.dirname, ".out");
 const NOTEBOOK = "examples/rvt_advanced_sample.py";
@@ -78,7 +81,9 @@ let page;
 const errors = [];
 
 before(async () => {
-  await buildMirror();
+  if (!ESM_SH_NETWORK) {
+    await buildMirror();
+  }
   const port = await freePort();
   marimo = spawn(
     "uv",
@@ -101,10 +106,17 @@ before(async () => {
   // SwiftShader: WebGL without a GPU
   browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-  await routeEsmSh(context);
+  if (!ESM_SH_NETWORK) {
+    await routeEsmSh(context);
+  }
   page = await context.newPage();
   page.on("console", (message) => {
-    if (message.type() === "error") {
+    // A second three.js (esm.sh resolving the viewer's three to another module than ours) only
+    // warns, and most of the scene still draws
+    if (
+      message.type() === "error" ||
+      message.text().includes("Multiple instances of Three.js being imported")
+    ) {
       errors.push(message.text());
     }
   });

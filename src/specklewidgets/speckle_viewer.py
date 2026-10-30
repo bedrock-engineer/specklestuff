@@ -48,7 +48,10 @@ class SpeckleViewer(anywidget.AnyWidget):
 
     Clicking an element selects it; shift-click adds to the selection and a click on nothing
     clears it. A click on an instance selects its InstanceProxy, whose applicationId is the
-    element's.
+    element's, with ``-instance-<n>`` appended when the element has several placements or
+    geometry of its own (:func:`bimpolars.speckle.read_speckle` strips it to key its rows). Its
+    ``definitionId`` has the model's root id in front (``<root id>/def-12``), as
+    :func:`~specklewidgets.models_gz` namespaces it.
 
     After each load the front end reports ``object_count`` and ``scene_bbox``; read them from a
     cell that references the marimo element, which reruns when they change.
@@ -98,7 +101,7 @@ class SpeckleViewer(anywidget.AnyWidget):
 
 def _as_models(models: Model | Sequence[Model]) -> list[Model]:
     """One model, or each of a sequence of models: a model is text or starts with a mapping."""
-    if isinstance(models, str) or (len(models) > 0 and isinstance(models[0], Mapping)):
+    if isinstance(models, str | Mapping) or (len(models) > 0 and isinstance(models[0], Mapping)):
         return [models]  # type: ignore[list-item]
     return list(models)  # type: ignore[arg-type]
 
