@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from speckle_objects import revit_like, unpack
+from speckle_objects import revit_like, run_without, unpack
 from specklewidgets import Marker, SpeckleViewer, models_gz
 
 
@@ -24,6 +24,19 @@ def test_json_text_is_one_model(model):
 def test_one_object_is_not_a_model():
     with pytest.raises(ValueError, match="model 0 has no root"):
         SpeckleViewer({"id": "root-a"})
+
+
+def test_the_core_imports_neither_bimpolars_nor_specklepy(model):
+    # The core depends on anywidget and traitlets only: a viewer of raw models needs nothing of
+    # the [bim] extra, nor bimpolars, polars or numpy
+    lines = run_without(
+        ("specklepy", "bimpolars", "polars", "numpy"),
+        "import gzip\n"
+        "from specklewidgets import SpeckleViewer\n"
+        f"viewer = SpeckleViewer({json.dumps(model)!r})\n"
+        "print(gzip.decompress(viewer.objects_gz).decode())\n",
+    )
+    assert json.loads(lines[0]) == unpack(models_gz(model))
 
 
 def test_no_models_leave_the_viewer_empty():

@@ -41,9 +41,12 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 - The intake draws the rows with a mesh except `bimpolars.gltf.EXCLUDED_CLASSES` (openings),
   one DataObject per row (`applicationId` = `id`, so `object_count` = those rows), and writes
   each property set at the path its name gives, the inverse of `bimpolars.read_speckle`'s
-  `_flatten`, so that `read_speckle` reads the drawn rows back (a test pins that). Unstyled
-  faces get no RenderMaterial, so they read back unstyled. Colours for `color` are the
-  dataviz reference palette's light categorical slots and blue ramp (steps 250 to 700).
+  `_flatten`, so that `read_speckle` reads back the drawn rows' ids, classes, names, meshes
+  and property sets (a test pins that). The other columns are plain fields, so they come back
+  inside the `object` set, not as columns: `container` reads back null, and the spatial rows
+  it points at have no mesh and are not drawn. Unstyled faces get no RenderMaterial, so they
+  read back unstyled. Colours for `color` are the dataviz reference palette's light
+  categorical slots and blue ramp (steps 250 to 700).
 - Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
   Python >= 3.12. Trait names stay the JSON wire format; facades only translate arguments.
 - The viewer works in metres: `scene_bbox` and `markers` are in metres whatever the models'

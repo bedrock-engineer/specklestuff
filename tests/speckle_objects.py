@@ -2,7 +2,9 @@
 
 import gzip
 import json
-from collections.abc import Iterator, Mapping
+import subprocess
+import sys
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 COLLECTION = "Speckle.Core.Models.Collections.Collection"
@@ -84,6 +86,22 @@ def revit_like(root_id: str = "root-a") -> list[dict[str, Any]]:
 def unpack(objects_gz: bytes) -> list[list[dict[str, Any]]]:
     unpacked: list[list[dict[str, Any]]] = json.loads(gzip.decompress(objects_gz))
     return unpacked
+
+
+def run_without(modules: Sequence[str], code: str) -> list[str]:
+    """Runs Python code in a subprocess that cannot import ``modules``; the lines it prints.
+
+    ``sys.modules[name] = None`` makes every import of the module raise ImportError, which is
+    how the tests check that the core does without a dependency (as bimpolars' tests do).
+    """
+    blocked = "".join(f"sys.modules[{name!r}] = None\n" for name in modules)
+    result = subprocess.run(
+        [sys.executable, "-c", f"import sys\n{blocked}{code}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip().splitlines()
 
 
 def children(obj: Mapping[str, Any], by_id: Mapping[str, Any]) -> Iterator[dict[str, Any]]:
