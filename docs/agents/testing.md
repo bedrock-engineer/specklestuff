@@ -11,7 +11,12 @@ area's known numbers sit in its doc: [viewer.md](viewer.md) (the three RVT model
 
 ## The e2e tests
 
-Each example notebook has an e2e test that opens it in headless Chromium:
+`just e2e` takes 15 to 20 minutes, so CI does not run it on PRs: the e2e workflow
+(`.github/workflows/e2e.yml`) runs it when started by hand (Actions > e2e > Run workflow, on any
+branch). Run it after changing how the widgets load or draw, and before a release. Pre-release,
+check visible changes with a screenshot instead of a new test (AGENTS.md).
+
+The example notebooks each have an e2e test that opens them in headless Chromium:
 
 - `examples/rvt_advanced_sample.py` (the three Revit Advanced Sample models):
   `e2e/notebook.test.mjs`.
@@ -30,8 +35,8 @@ instances of Three.js" warning.
 
 ## In a cloud container
 
-The widgets load nothing from a CDN, so `just e2e` runs in the cloud containers as it does in
-CI. api.pdok.nl, tile.openstreetmap.org and cdn.proj.org are blocked from the cloud
+The widgets load nothing from a CDN, so `just e2e` runs in the cloud containers as it does on
+GitHub Actions. api.pdok.nl, tile.openstreetmap.org and cdn.proj.org are blocked from the cloud
 containers:
 
 - With the PROJ network on and no grids, bimpolars fails to transform there ("did not

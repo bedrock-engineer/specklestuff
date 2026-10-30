@@ -286,11 +286,11 @@ The repo has two toolchains, [pnpm](https://pnpm.io) for the JS (a workspace of
 ```sh
 just                # lists the recipes
 just setup          # pnpm install --frozen-lockfile + uv sync --locked
-just build          # tsc + vite: packages/geospeckle-viewer → src/specklewidgets/static/ (committed)
+just build          # tsc + vite: the widgets → src/specklewidgets/static/ (committed)
 just build-npm      # the npm package's dist/, as it would be published
 just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
 just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
-just e2e            # the example notebooks in headless Chromium (see below)
+just e2e            # the example notebooks and the demo page in headless Chromium (see below)
 just live           # receive and send on a real Speckle server (see below)
 ```
 
@@ -305,13 +305,15 @@ bucket's frame, and sends the structural model into a new model of
 sent; in `SPECKLEWIDGETS_TEST_PROJECT` it deletes only the model, and the sent objects stay in
 that project.
 
-`just e2e` serves the example notebooks with marimo, opens them in headless Chromium (WebGL
-by SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
-errors, that the canvas is drawn on and that the viewer reports the element count and bounding
-box that `tests/test_rvt_advanced_sample.py` reaches without the viewer; that each BimDataFrame
-of the architectural model draws one element per row with a mesh and spans the frame's `bbox`
-(`tests/test_rvt_arch_bimdataframe.py` has the numbers); that Sixty5 in
-`examples/sixty5_geo.py` stands on its BAG pand, on the ground map and among the 3D BAG with
+CI runs `just check` on every PR. `just e2e` takes 15 to 20 minutes, so it runs by hand, or as
+the e2e workflow (Actions > e2e > Run workflow), before a release and after changes to how the
+widgets load or draw. It serves the example notebooks with marimo, opens them in headless
+Chromium (WebGL by SwiftShader) and asserts that the three Revit Advanced Sample models load
+with no console errors, that the canvas is drawn on and that the viewer reports the element
+count and bounding box that `tests/test_rvt_advanced_sample.py` reaches without the viewer;
+that each BimDataFrame of the architectural model draws one element per row with a mesh and
+spans the frame's `bbox` (`tests/test_rvt_arch_bimdataframe.py` has the numbers); that Sixty5
+in `examples/sixty5_geo.py` stands on its BAG pand, on the ground map and among the 3D BAG with
 its own building left out; and that the page asks no CDN for anything. The Sixty5 test runs
 twice: offline, with PDOK's APIs answered by `e2e/offline-pdok/sitecustomize.py` and the map
 and 3D BAG tiles made by `e2e/surroundings.mjs`, and live, where api.pdok.nl and
