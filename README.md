@@ -39,9 +39,9 @@ examples/rvt_advanced_sample.py`.
 uv add "specklewidgets @ git+https://github.com/bedrock-engineer/specklestuff"
 ```
 
-The package depends on anywidget and traitlets only; the built widget is in the wheel. The
-browser loads `@speckle/viewer` and three.js from [esm.sh](https://esm.sh), so the notebook needs
-to reach it.
+The package depends on anywidget and traitlets only. The built widget is in the wheel, with
+`@speckle/viewer` and three.js bundled in (2.7 MB, 0.8 MB of the wheel), so the notebook needs
+no network access; their licenses are in `specklewidgets/static/speckle-viewer.LICENSES.txt`.
 
 ## API
 
@@ -74,21 +74,24 @@ to reach it.
 
 ## Development
 
+The repo has two toolchains, npm for `js/` and uv for the Python, and
+[just](https://just.systems) runs both (`scoop install just`, `brew install just`, or
+`uv tool install rust-just`; on Windows it needs Git Bash's `sh`):
+
 ```sh
-npm install && uv sync
-npm run build       # tsc + vite: js/ → src/specklewidgets/static/ (committed)
-npm run dev         # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
-npm run typecheck && npm run test && npm run lint && npm run fmt:check
-uv run pytest && uv run mypy src && uv run ruff check && uv run ruff format --check
-npm run e2e         # the example notebook in headless Chromium (see below)
+just                # lists the recipes
+just setup          # npm ci + uv sync --locked
+just build          # tsc + vite: js/ → src/specklewidgets/static/ (committed)
+just dev            # rebuilds on change; ANYWIDGET_HMR=1 hot-reloads the notebook
+just check          # typecheck, vitest, oxlint, oxfmt, ruff, mypy, pytest
+just e2e            # the example notebook in headless Chromium (see below)
 ```
 
-`npm run e2e` serves the example notebook with marimo, opens it in headless Chromium (WebGL by
+`just e2e` serves the example notebook with marimo, opens it in headless Chromium (WebGL by
 SwiftShader) and asserts that the three Revit Advanced Sample models load with no console
 errors, that the canvas is drawn on and that the viewer reports the element count and bounding
-box that `tests/test_rvt_advanced_sample.py` reaches without the viewer. It serves esm.sh from a
-mirror it bundles out of `node_modules`, so it runs where esm.sh is out of reach;
-`E2E_ESM_SH=network npm run e2e` loads the real esm.sh instead, as CI does. The models
+box that `tests/test_rvt_advanced_sample.py` reaches without the viewer, and that the page
+asks no CDN for anything. The models
 come through `bimpolars.data.fetch`: set `BIMPOLARS_DATA_DIR` to a local copy of the bimpolars
 bucket, or let it download (16 MB).
 
