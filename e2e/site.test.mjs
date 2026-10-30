@@ -151,7 +151,7 @@ test("the viewer draws Sixty5 among the 3D BAG", { timeout: 10 * MINUTE }, async
     basemapTiles.every((url) => url.includes("/brt/achtergrondkaart/")),
     "the topographic map by default",
   );
-  // site/.env's title, or the one VITE_SITE_TITLE gave the build
+  // The h1 of site/intro/<SITE>.html, which vite.config.js puts into the page
   const title = await page.title();
   assert.doesNotMatch(title, /%/);
   assert.equal(await page.locator("h1").textContent(), title);

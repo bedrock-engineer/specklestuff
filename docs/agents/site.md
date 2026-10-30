@@ -9,7 +9,9 @@ at the word space over the separator's middle so that it moves with it; the sepa
 the strip (joost: "should really read as a single sentence"). Below 900 px the panes stack, without a separator, beside a
 strip on the right (`.rail`) that holds the instructions written vertically and is the only place
 on the panes where a swipe scrolls the page: the panes are `touch-action: none`, so their touches
-always move the camera or the map (joost, on his phone). `just site-data`,
+always move the camera or the map (joost, on his phone). There the header's intro is a `<details>`
+collapsed to the title, which a tap opens; an inline script in `index.html` opens it side by side
+before the first paint. `just site-data`,
 `just site` and `just site-dev` build and serve it.
 
 ## How it is built
@@ -24,9 +26,9 @@ always move the camera or the map (joost, on his phone). `just site-data`,
   `selected` with `footprint-map.ts` (MapLibre on PDOK's BRT, or its luchtfoto; the building's
   outline dotted red). `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
   viewer and the map follow their panes' sizes with ResizeObservers of their own.
-- The title is `VITE_SITE_TITLE`, which Vite puts into `index.html` (`%VITE_SITE_TITLE%`):
-  `site/.env` holds specklestuff's, and bimpolars' Pages workflow sets bimpolars' in the
-  environment, which wins over `.env`. The header's two-row hint says how to select; the card
+- The header's title and intro are `site/intro/<SITE>.html`, which `vite.config.js` puts into
+  `index.html`, the h1 as the `<title>` too: `SITE` is unset (specklestuff) or `bimpolars`, which
+  bimpolars' Pages workflow sets (`SITE=bimpolars just site` builds that one here). The header's two-row hint says how to select; the card
   on the map stays empty, and out of sight, until something is selected.
 - `e2e/site.test.mjs` writes the data offline, builds the page into `e2e/.out/site` and serves
   it as Pages does.
