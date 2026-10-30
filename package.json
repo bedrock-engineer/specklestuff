@@ -7,7 +7,7 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "ENTRY=js/speckle-viewer.ts vite build --watch",
+    "dev": "node build.mjs --watch",
     "typecheck": "tsc",
     "test": "vitest run",
     "lint": "oxlint",
@@ -16,7 +16,7 @@
     "fmt:check": "oxfmt --check",
     "e2e": "node --test --test-concurrency=1 --test-timeout=1200000 e2e/notebook.test.mjs e2e/bimdataframe.test.mjs",
     "release": "release-it",
-    "build": "tsc && rm -rf src/specklewidgets/static && ENTRY=js/speckle-viewer.ts vite build"
+    "build": "tsc && node build.mjs"
   },
   "dependencies": {
     "@speckle/objectloader2": "2.31.14",
@@ -28,11 +28,11 @@
     "@anywidget/vite": "^0.3.0",
     "@release-it/bumper": "^8.0.0",
     "@types/three": "0.140.0",
-    "esbuild": "^0.28.2",
     "oxfmt": "^0.63.0",
     "oxlint": "^1.90.0",
     "playwright": "1.63.0",
     "release-it": "^21.0.3",
+    "rollup-plugin-license": "^3.7.1",
     "typescript": "^7.0.2",
     "vite": "^7.3.7",
     "vitest": "^4.1.12"

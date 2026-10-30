@@ -18,6 +18,5 @@ __marimo__/
 # Node
 node_modules/
 
-# The e2e test's local esm.sh mirror and screenshots
-e2e/.mirror/
+# The e2e screenshots
 e2e/.out/

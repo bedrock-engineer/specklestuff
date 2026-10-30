@@ -1,18 +1,14 @@
 // What the headless tests share: a marimo server for an example notebook, headless Chromium
-// on it with esm.sh served from node_modules (see esm-mirror.mjs) unless E2E_ESM_SH=network
-// (then the browser loads the real esm.sh, as a user's does; CI sets it), and a look at a
-// canvas.
+// on it, and a look at a canvas. The widget bundles the viewer and three.js, so the page loads
+// nothing from a CDN; a request to esm.sh counts as an error.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "node:net";
 import path from "node:path";
 import { chromium } from "playwright";
-import { buildMirror, routeEsmSh } from "./esm-mirror.mjs";
 
 const ROOT = path.join(import.meta.dirname, "..");
-// Whether the browser loads the real esm.sh instead of the mirror
-const ESM_SH_NETWORK = process.env.E2E_ESM_SH === "network";
 // What a test saw, for a look when it fails (gitignored; CI uploads it)
 export const OUT = path.join(import.meta.dirname, ".out");
 
@@ -50,14 +46,11 @@ async function waitForServer(url, timeout) {
  *   errors: string[],
  *   waitFor: (locator: import("playwright").Locator, timeout: number) => Promise<void>,
  *   close: () => Promise<void>,
- * }>} the page; the console errors, page errors and a second three.js it logs; a wait for a
- *   locator that on timeout fails with what the page logged (and saves a screenshot of the
- *   page in OUT); and what stops marimo and the browser
+ * }>} the page; the console errors, page errors, a second three.js and any request to esm.sh
+ *   it logs; a wait for a locator that on timeout fails with what the page logged (and saves a
+ *   screenshot of the page in OUT); and what stops marimo and the browser
  */
 export async function openNotebook(notebook) {
-  if (!ESM_SH_NETWORK) {
-    await buildMirror();
-  }
   const port = await freePort();
   const marimo = spawn(
     "uv",
@@ -84,18 +77,20 @@ export async function openNotebook(notebook) {
     await waitForServer(url, 2 * MINUTE);
     browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
     const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
-    if (!ESM_SH_NETWORK) {
-      await routeEsmSh(context);
-    }
-    const page = await context.newPage();
     const errors = [];
+    // The bundle is self-contained: the CDN it used to import from must not be asked
+    await context.route("https://esm.sh/**", async (route) => {
+      errors.push(`request to esm.sh: ${route.request().url()}`);
+      await route.abort();
+    });
+    const page = await context.newPage();
     // Everything the page logs and every request that fails, for the message of a test that
     // times out before it gets to the errors
     const log = [];
     page.on("console", (message) => {
       log.push(`${message.type()}: ${message.text()}`);
-      // A second three.js (esm.sh resolving the viewer's three to another module than ours) only
-      // warns, and most of the scene still draws
+      // A second three.js (a dependency of the viewer bundling its own copy) only warns, and
+      // most of the scene still draws
       if (
         message.type() === "error" ||
         message.text().includes("Multiple instances of Three.js being imported")

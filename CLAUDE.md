@@ -9,7 +9,8 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
   `speckle_viewer.py` (`SpeckleViewer`: traits + constructor facade; `Marker`), `models.py`
   (`models_gz`: packs models and adjusts what trips the viewer), `bim.py` (`bim_objects`,
   `bim_collection`: a BimDataFrame as v3 objects, the `[bim]` extra), `static/` the built
-  bundles (committed, `minify: false`, so the wheel and `git+` installs need no node).
+  bundles (committed, `minify: false`, so the wheel and `git+` installs need no node) and each
+  bundle's `<name>.LICENSES.txt`, the third-party licenses rollup-plugin-license collects.
 - `js/`: one entry per widget (`speckle-viewer.ts`) composing `js/lib/` modules;
   `js/lib/types.ts` is the TS mirror of the trait comments, change them together. Pure logic
   (selection, the element count, gunzip) is in `js/lib` with colocated `*.test.ts` (vitest).
@@ -23,20 +24,21 @@ Python instead of a Speckle server. Laid out like `bedrock-engineer/cpt-anywidge
 
 ## Rules
 
-- `npm run build` after every change in `js/` and commit `src/specklewidgets/static/`.
-  `npm run typecheck`, `npm run test`, `npm run lint`, `npm run fmt:check`, `uv run pytest`,
-  `uv run mypy src`, `uv run ruff check` and `uv run ruff format --check` must pass.
-- One vite invocation per widget entry (`ENTRY=...`): anywidget loads each `_esm` as one
-  self-contained module, so entries must not share chunks.
-- `@speckle/viewer`, `@speckle/objectloader2` and `three` are externals on esm.sh at the exact
-  versions in package.json's `dependencies`, every URL with `?target=es2022` (vite.config.js
-  `ESM_SH`), so that esm.sh serves the viewer's three.js and ours as one module. The viewer's
-  URL also pins three and objectloader2 with `&deps=`: without it esm.sh resolves the peer
-  ranges of its dependencies on their own, and the graph holds three.js 0.140.2, 0.172.0 and
-  0.186.1. `node e2e/esm-check.mjs` crawls the graph and fails on a module that does not
-  answer 200 (with esm.sh's error) or on two builds of one external; CI runs it before the
-  e2e. Bump the three together: three must be the version the viewer's own range resolves to
-  on esm.sh.
+- just is the task runner (the repo has two toolchains, npm and uv): `just` lists the
+  recipes and CI runs the same ones. `just build` after every change in `js/` and commit
+  `src/specklewidgets/static/`; `just check` (`check-js` and `check-py`: typecheck, vitest,
+  oxlint, oxfmt, ruff, mypy, pytest) must pass. Recipes run in sh (Git Bash on Windows);
+  package.json scripts stay single commands without `rm -rf` or `VAR=x` prefixes, because npm
+  runs them in cmd.exe on Windows (`build.mjs` cleans and loops in node for that reason).
+- One vite build per widget entry (`vite.config.js` `ENTRIES`, looped by `build.mjs`):
+  anywidget loads each `_esm` as one self-contained module, so entries must not share chunks
+  or load relative assets.
+- `@speckle/viewer`, `@speckle/objectloader2` and `three` are bundled in, at the exact versions
+  in package.json's `dependencies`. npm dedupes three to one copy, which the viewer's
+  three-mesh-bvh and troika dependencies resolve to as well, so the viewer and our markers
+  share one three.js (esm.sh resolved those peer ranges to 0.172.0 and 0.186.1, and its builds
+  failed for hours on 2026-10-30, which is why the widget no longer loads from it). Bump the
+  three together, and check `npm ls three` shows one version.
 - The Python core depends on anywidget and traitlets only and imports nothing else.
   `specklewidgets.bim` (the BimDataFrame intake) needs the extra `[bim]` (specklepy) and
   bimpolars, numpy and polars, which any BimDataFrame brings; bimpolars stays a dev dependency
@@ -97,9 +99,7 @@ takes 45 s): `read_speckle` with the bundle draws 5568 rows (every row with a me
 -107.4743..211.5911, y -53.3989..98.3638, z -1.8288..12.4854 m. `bim_objects` takes 4 to 6 s
 on either (specklepy hashes 17,600 objects, 36 to 45 MB of JSON).
 
-esm.sh is blocked from the cloud containers: `npm run e2e` serves it from a mirror bundled out
-of `node_modules` (`e2e/esm-mirror.mjs`), so it runs there as well. CI sets
-`E2E_ESM_SH=network` to load the real esm.sh, the URLs a user's browser loads, and the test
-fails on three's "Multiple instances of Three.js" warning. The two e2e files run one after the
-other (`--test-concurrency=1`): each starts marimo and a SwiftShader Chromium, through
-`e2e/marimo.mjs`, which holds the `E2E_ESM_SH` switch.
+The widget loads nothing from a CDN, so `just e2e` runs in the cloud containers as it does in
+CI. The tests fail on any request to esm.sh and on three's "Multiple instances of Three.js"
+warning. The two e2e files run one after the other (`--test-concurrency=1`): each starts
+marimo and a SwiftShader Chromium through `openNotebook` in `e2e/marimo.mjs`.

@@ -2,11 +2,11 @@
 // examples/rvt_advanced_sample.py, the three Revit Advanced Sample models load into one
 // SpeckleViewer, and the test reads what the viewer reports back through its traits.
 //
-//   npm run build && npm run e2e
+//   just build && just e2e
 //
 // The notebook reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a local copy, or let
-// bimpolars download it). esm.sh is served from node_modules (see esm-mirror.mjs), unless
-// E2E_ESM_SH=network: then the browser loads the real esm.sh, as a user's does (CI sets it).
+// bimpolars download it). The widget bundles the viewer and three.js, so the page loads nothing
+// from a CDN; a request to esm.sh fails the test (see marimo.mjs).
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
