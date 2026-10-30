@@ -45,7 +45,7 @@ test = [
 ]
 
 [tool.uv.sources]
-bimpolars = { git = "https://github.com/bedrock-engineer/bimpolars", branch = "claude/project-thread-tqliy0" }
+bimpolars = { git = "https://github.com/bedrock-engineer/bimpolars", branch = "main" }
 
 # uv installs this repo as a path dependency in sandboxed notebooks and caches the built
 # wheel; without these keys a JS rebuild (which only touches static/) never invalidates it

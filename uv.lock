@@ -127,7 +127,7 @@ wheels = [
 [[package]]
 name = "bimpolars"
 version = "0.1.0"
-source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=claude%2Fproject-thread-tqliy0#338beceee65c8c8f2a98596986b474579ad43097" }
+source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=main#655fd358c9a11bcfb1e1798233e623a4cab6bc16" }
 dependencies = [
     { name = "numpy" },
     { name = "polars" },
@@ -2129,7 +2129,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bimpolars", extras = ["ifc", "speckle"], git = "https://github.com/bedrock-engineer/bimpolars?branch=claude%2Fproject-thread-tqliy0" },
+    { name = "bimpolars", extras = ["ifc", "speckle"], git = "https://github.com/bedrock-engineer/bimpolars?branch=main" },
     { name = "marimo", specifier = ">=0.17" },
     { name = "mypy", specifier = ">=1.14" },
     { name = "pytest", specifier = ">=8.3" },
