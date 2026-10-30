@@ -30,7 +30,7 @@ dev:
 # Every check except the e2e
 check: check-js check-py
 
-# Types, lint, format and unit tests of js/
+# Types, lint, format and unit tests of js/ and site/
 check-js:
     npm run typecheck
     npm run lint
@@ -53,9 +53,21 @@ fmt:
     npm run fmt
     uv run ruff format
 
-# The example notebook in headless Chromium (needs `npx playwright install chromium` once)
+# The example notebooks and the demo page in headless Chromium (`npx playwright install chromium` once)
 e2e:
     npm run e2e
+
+# The demo page's data: Sixty5 from the bimpolars bucket, the OSM map and PDOK's 3D BAG
+site-data:
+    uv run python site/sixty5.py site/public/data
+
+# The demo page for GitHub Pages, into site/dist
+site: site-data
+    npm run site
+
+# Serve the demo page with hot reload (after `just site-data`)
+site-dev:
+    npm run site:dev
 
 # Receive and send on a real Speckle server with this machine's Speckle account (skips without one)
 live:

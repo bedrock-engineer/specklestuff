@@ -104,6 +104,19 @@ version_id = send(client, bdf, "<project id>", "<model id>", message="from a not
 `examples/speckle_receive_send.py` is that notebook, with a token field (wigglystuff's
 `EnvConfig`) for a machine without a Speckle account.
 
+## Demo page
+
+`site/` is a static page with the GeoSpeckleViewer of `examples/sixty5_geo.py` beside a
+[MapLibre](https://maplibre.org) map that shows the footprint of the element you click, on
+PDOK's aerial photo: [bedrock-engineer.github.io/specklestuff](https://bedrock-engineer.github.io/specklestuff/),
+and the same page at [bedrock-engineer.github.io/bimpolars](https://bedrock-engineer.github.io/bimpolars/).
+GitHub Pages runs no Python, so `site/sixty5.py` computes what the notebook computes at build
+time: the widget's traits (`viewer.json`, and the model as `objects.json.gz`) and the drawn
+rows' footprints in longitude and latitude (`footprints.geojson`, bimpolars' `geog` column).
+The page runs the widget on a `StaticModel` (`site/static-model.ts`), an anywidget model
+without a kernel, and follows its `selected` trait. `just site` builds it into `site/dist`;
+`just site-data` and then `just site-dev` serve it with hot reload.
+
 ## Install
 
 ```sh

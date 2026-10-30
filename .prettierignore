@@ -1,5 +1,7 @@
 src/specklewidgets/static/
 sandbox/
+site/dist/
+site/public/
 uv.lock
 package-lock.json
 pyproject.toml

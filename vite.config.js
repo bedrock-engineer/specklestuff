@@ -63,5 +63,5 @@ export function widgetConfig(entry, { watch = false } = {}) {
 export default defineConfig({
   ...widgetConfig(process.env.ENTRY ?? ENTRIES[0]),
   // e2e/ holds node:test files that run against a browser, through npm run e2e
-  test: { include: ["js/**/*.test.ts"] },
+  test: { include: ["js/**/*.test.ts", "site/**/*.test.ts"] },
 });

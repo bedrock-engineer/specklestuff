@@ -1,0 +1,175 @@
+// Opens the demo page (site/) in headless Chromium: Sixty5 in a GeoSpeckleViewer beside a
+// MapLibre map, a click in the viewer showing the element's footprint on the map. The test
+// writes the page's data with site/sixty5.py and builds the page into OUT, then serves it as
+// GitHub Pages does: static files, the gzipped model as it is.
+//
+//   just e2e
+//
+// It runs offline: PDOK's APIs answer site/sixty5.py from e2e/offline-pdok/sitecustomize.py,
+// and the browser's map tiles and 3D BAG tile come from e2e/surroundings.mjs, so it runs where
+// api.pdok.nl, service.pdok.nl and tile.openstreetmap.org are out of reach (the cloud
+// containers). The data script reads the bimpolars test data (set BIMPOLARS_DATA_DIR to a
+// local copy, or let bimpolars download it).
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdir, readFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import { build } from "vite";
+import { MINUTE, OUT, openPage } from "./marimo.mjs";
+import { routeSurroundings, tilePng } from "./surroundings.mjs";
+
+const ROOT = path.join(import.meta.dirname, "..");
+const DIST = path.join(OUT, "site");
+const DATA = path.join(OUT, "site-data");
+
+// What tests/test_geo.py and the notebook reach: the rows with a mesh less the 1284 openings,
+// each with a footprint
+const DRAWN_ROWS = 1363;
+
+const TYPES = {
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".mjs": "text/javascript",
+  ".css": "text/css",
+  ".json": "application/json",
+  ".geojson": "application/geo+json",
+  // GitHub Pages serves a .gz file as it is, without a Content-Encoding
+  ".gz": "application/gzip",
+};
+
+function run(command, args, env) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: ROOT,
+      stdio: ["ignore", "inherit", "inherit"],
+      env: { ...process.env, ...env },
+    });
+    child.on("error", reject);
+    child.on("exit", (code) =>
+      code === 0 ? resolve() : reject(new Error(`${command} ${args.join(" ")} exited ${code}`)),
+    );
+  });
+}
+
+/** Serves the built page, its data folder from the data the test wrote */
+async function serve() {
+  const server = createServer(async (request, response) => {
+    const pathname = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
+    const file = pathname.startsWith("/data/")
+      ? path.join(DATA, pathname.slice("/data/".length))
+      : path.join(DIST, pathname.endsWith("/") ? `${pathname}index.html` : pathname);
+    try {
+      const body = await readFile(file);
+      response.writeHead(200, {
+        "Content-Type": TYPES[path.extname(file)] ?? "application/octet-stream",
+      });
+      response.end(body);
+    } catch {
+      response.writeHead(404);
+      response.end();
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return server;
+}
+
+let server;
+let opened;
+let served;
+const basemapTiles = [];
+
+before(async () => {
+  await mkdir(OUT, { recursive: true });
+  await run("uv", ["run", "python", "site/sixty5.py", DATA], {
+    PYTHONPATH: path.join(ROOT, "e2e", "offline-pdok"),
+  });
+  await build({
+    configFile: path.join(ROOT, "site", "vite.config.js"),
+    logLevel: "warn",
+    // Only what the page imports: the data comes from DATA
+    publicDir: false,
+    build: { outDir: DIST, emptyOutDir: true },
+  });
+  server = await serve();
+  const pdok = tilePng([200, 210, 190]);
+  opened = await openPage(`http://127.0.0.1:${server.address().port}/`, {
+    name: "site",
+    viewport: { width: 1440, height: 900 },
+    async route(context) {
+      served = await routeSurroundings(context);
+      await context.route("https://service.pdok.nl/**", async (route) => {
+        basemapTiles.push(route.request().url());
+        await route.fulfill({
+          body: pdok,
+          contentType: "image/png",
+          headers: { "Access-Control-Allow-Origin": "*" },
+        });
+      });
+    },
+  });
+});
+
+after(async () => {
+  await opened?.close();
+  server?.close();
+});
+
+test("the viewer draws Sixty5 among the 3D BAG", { timeout: 10 * MINUTE }, async () => {
+  const { page, errors, waitFor } = opened;
+  await waitFor(page.locator("#viewer-pane[data-object-count]"), 5 * MINUTE);
+  const pane = page.locator("#viewer-pane");
+  assert.equal(Number(await pane.getAttribute("data-object-count")), DRAWN_ROWS);
+  assert.ok(await page.locator("#loading").isHidden(), "the loading message is gone");
+  // The 3D BAG's tile comes in after the model
+  await page.waitForFunction(
+    () => JSON.parse(document.getElementById("viewer-pane").dataset.surroundings ?? "{}").tiles > 0,
+    undefined,
+    { timeout: 3 * MINUTE },
+  );
+  const surroundings = JSON.parse(await pane.getAttribute("data-surroundings"));
+  assert.equal(surroundings.ground_map.length, 4, "the ground map lies under the model");
+  assert.ok(
+    served.some((url) => url.startsWith("https://tile.openstreetmap.org/")),
+    "the ground map's tiles",
+  );
+  assert.ok(basemapTiles.length > 0, "the footprint map's tiles");
+  assert.deepEqual(errors, []);
+});
+
+test("a click shows the element's footprint on the map", { timeout: 10 * MINUTE }, async () => {
+  const { page, errors, waitFor } = opened;
+  const canvas = page.locator("#viewer canvas").first();
+  await waitFor(canvas, MINUTE);
+  const { width, height } = await canvas.boundingBox();
+  const selected = page.locator('#selection:not([data-ids="[]"])');
+  // The tower fills the middle of the view; try a few points there until one hits
+  for (const [x, y] of [
+    [0.5, 0.5],
+    [0.45, 0.5],
+    [0.55, 0.5],
+    [0.5, 0.45],
+    [0.5, 0.55],
+  ]) {
+    await canvas.click({ position: { x: x * width, y: y * height }, timeout: 2 * MINUTE });
+    try {
+      await selected.waitFor({ timeout: 30_000 });
+      break;
+    } catch {
+      // nothing under this point
+    }
+  }
+  const card = page.locator("#selection");
+  const ids = JSON.parse(await card.getAttribute("data-ids"));
+  assert.equal(ids.length, 1, "one element selected");
+  // The map draws the footprint once it has flown there
+  await waitFor(page.locator('#selection:not([data-drawn="[]"])'), MINUTE);
+  assert.deepEqual(JSON.parse(await card.getAttribute("data-drawn")), ids);
+  const footprints = JSON.parse(await readFile(path.join(DATA, "footprints.geojson"), "utf8"));
+  const { properties } = footprints.features.find((feature) => feature.properties.id === ids[0]);
+  assert.equal(await card.locator(".class").textContent(), properties.class);
+  assert.match(await card.locator(".storey").textContent(), new RegExp(`^${properties.storey}`));
+  await page.screenshot({ path: path.join(OUT, "site.png"), timeout: 5 * MINUTE });
+  assert.deepEqual(errors, []);
+});

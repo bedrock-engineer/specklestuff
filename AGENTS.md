@@ -10,6 +10,7 @@ model, element, definition, member and placement are defined in [CONTEXT.md](CON
   `static/` holds the built bundles, committed.
 - `js/`: one entry per widget, composing `js/lib/` modules.
 - `examples/`: marimo notebooks, each with an e2e test in `e2e/`.
+- `site/`: the demo page for GitHub Pages, built on the widget's own `render`.
 - `sandbox/oauth/`: the old OAuth widget, not packaged, not linted.
 
 ## Commands
@@ -52,5 +53,6 @@ Read the doc of an area before you change its code or write its tests:
   map, the 3D BAG, heights and the NSGI grids.
 - [Speckle server](docs/agents/server.md): `specklewidgets.server`, tokens, the fake server and
   the live tests.
+- [The demo page](docs/agents/site.md): `site/`, its build-time data and the Pages workflow.
 - [Test data and the e2e tests](docs/agents/testing.md): the bucket, the e2e tests, and running
   them in a cloud container.

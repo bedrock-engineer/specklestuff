@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sixty5 among its neighbours</title>
+    <meta
+      name="description"
+      content="The structural model of Sixty5 in Eindhoven, read from IFC with bimpolars and shown with specklewidgets' GeoSpeckleViewer among PDOK's 3D BAG, with the footprint of the element you click on a map."
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="intro">
+        <h1>Sixty5 among its neighbours</h1>
+        <p>
+          The structural model of Sixty5, a tower at Strijp-S in Eindhoven, read from its IFC with
+          bimpolars and placed on earth with its Engineering CRS, among the buildings of PDOK's 3D
+          BAG. Click an element to see its footprint on the map; shift-click adds to the selection.
+        </p>
+      </div>
+      <nav aria-label="Source code">
+        <a href="https://github.com/bedrock-engineer/bimpolars">bimpolars</a>
+        <a href="https://github.com/bedrock-engineer/specklestuff">specklewidgets</a>
+      </nav>
+    </header>
+    <main class="panes">
+      <section id="viewer-pane" class="pane" aria-label="3D view of the model">
+        <div id="viewer"></div>
+        <p id="loading" class="loading">Loading the structural model…</p>
+      </section>
+      <section id="map-pane" class="pane" aria-label="Footprint map">
+        <div id="map"></div>
+        <div class="basemaps" role="group" aria-label="Basemap">
+          <button type="button" data-basemap="aerial" aria-pressed="true">Aerial photo</button>
+          <button type="button" data-basemap="topographic" aria-pressed="false">Topographic</button>
+        </div>
+        <aside id="selection" class="card" aria-live="polite" data-ids="[]" data-drawn="[]">
+          <p class="hint">Click an element in the 3D view to see its footprint here.</p>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

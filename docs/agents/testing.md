@@ -23,8 +23,10 @@ Each example notebook has an e2e test that opens it in headless Chromium:
   browser) and live where PDOK and OSM answer.
 
 `e2e/marimo.mjs` serves a notebook and opens it for all three (`openNotebook`: marimo and a
-SwiftShader Chromium). The e2e files run one after the other (`--test-concurrency=1`). The
-tests fail on any request to esm.sh and on three's "Multiple instances of Three.js" warning.
+SwiftShader Chromium); its `openPage` opens any page, which the demo page's test
+(`e2e/site.test.mjs`, [site.md](site.md)) uses. The e2e files run one after the other
+(`--test-concurrency=1`). The tests fail on any request to esm.sh and on three's "Multiple
+instances of Three.js" warning.
 
 ## In a cloud container
 
