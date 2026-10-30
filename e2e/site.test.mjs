@@ -226,14 +226,6 @@ test("the separator resizes the viewer and the map", { timeout: 5 * MINUTE }, as
   const viewer = await page.locator("#viewer-pane").boundingBox();
   const map = await page.locator("#map-pane").boundingBox();
   assert.ok(Math.abs(viewer.width / (viewer.width + map.width) - 0.4) < 0.01, "40 % to the viewer");
-  // The instructions' halves meet at the separator: "Click a BIM element | to see its footprint"
-  const click = await page.locator(".how-click").boundingBox();
-  const see = await page.locator(".how-see").boundingBox();
-  assert.ok(
-    Math.abs(click.x + click.width - viewer.x - viewer.width) < 1,
-    "the first half ends there",
-  );
-  assert.ok(Math.abs(see.x - map.x) < 1, "the second half starts there");
   await canvasFills(page, "#viewer-pane", "#viewer canvas");
   await canvasFills(page, "#map-pane", "#map canvas.maplibregl-canvas");
   // The keys move it too

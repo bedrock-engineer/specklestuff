@@ -91,7 +91,7 @@ a {
   background: var(--separator);
   color: var(--muted);
   font-size: 13px;
-  line-height: 24px;
+  line-height: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -99,21 +99,26 @@ a {
 
 .how-click {
   grid-area: 1 / 1;
-  padding-top: 4px;
+  padding-top: 3px;
   text-align: right;
 }
 
+/* A subtitle to the sentence */
 .how-shift {
   grid-area: 2 / 1;
-  padding-bottom: 4px;
+  padding-bottom: 3px;
   border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 13px;
+  font-style: italic;
+  opacity: 0.85;
   text-align: right;
 }
 
 .how-see {
   grid-row: 1 / span 2;
   grid-column: 3;
-  padding-top: 4px;
+  padding-top: 3px;
   border-bottom: 1px solid var(--line);
 }
 
