@@ -1,0 +1,193 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+/* Side by side: the 3D view and the footprint map at full height under a one-line bar; stacked
+   below 900 px */
+:root {
+  --bg: #f4f5f7;
+  --fg: #1b2230;
+  --muted: #586174;
+  --panel: #ffffff;
+  --line: #d6dae2;
+  --accent: #2f6fde;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.45 var(--font);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px
+    max(16px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.intro {
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.intro p {
+  margin: 2px 0 0;
+  max-width: 110ch;
+  color: var(--muted);
+}
+
+nav {
+  display: flex;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+a {
+  color: var(--accent);
+}
+
+.panes {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1px;
+  min-height: 0;
+  background: var(--line);
+}
+
+.pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  background: var(--panel);
+}
+
+.basemaps {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+}
+
+.basemaps button {
+  padding: 5px 10px;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.basemaps button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.basemaps button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.card {
+  position: absolute;
+  right: 10px;
+  bottom: 34px;
+  left: 10px;
+  max-width: 380px;
+  margin-left: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.18);
+}
+
+.card p {
+  margin: 0;
+}
+
+.card .class {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.card .name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.card .storey,
+.card .hint {
+  color: var(--muted);
+}
+
+.card ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  body {
+    display: block;
+    height: auto;
+  }
+
+  .panes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 65vh 60vh;
+  }
+}

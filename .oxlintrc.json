@@ -1,6 +1,11 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "ignorePatterns": ["src/specklewidgets/static/**", "sandbox/**"],
+  "ignorePatterns": [
+    "src/specklewidgets/static/**",
+    "sandbox/**",
+    "site/dist/**",
+    "site/public/**"
+  ],
   "plugins": ["typescript", "unicorn", "oxc"],
   "categories": {
     "correctness": "error"

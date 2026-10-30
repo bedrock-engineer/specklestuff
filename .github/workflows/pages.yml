@@ -1,0 +1,56 @@
+name: Pages
+
+# The demo page (site/): Sixty5 in a GeoSpeckleViewer beside a MapLibre map of the selected
+# element's footprint. bimpolars' Pages workflow builds the same page from this repository.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: just setup
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bimpolars
+          key: bimpolars-data-2026-10-30-arch-ifc
+      # site/sixty5.py turns PROJ's network on: PROJ fetches the NSGI grids from cdn.proj.org,
+      # so that PDOK's 3D BAG stands on the map
+      - run: just site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

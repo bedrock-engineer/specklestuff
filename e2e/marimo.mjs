@@ -1,5 +1,5 @@
-// What the headless tests share: a marimo server for an example notebook, headless Chromium
-// on it, and a look at a canvas. The widget bundles the viewer and three.js, so the page loads
+// What the headless tests share: headless Chromium on a page, a marimo server for an example
+// notebook, and a look at a canvas. The widget bundles the viewer and three.js, so the page loads
 // nothing from a CDN; a request to esm.sh counts as an error.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -38,14 +38,15 @@ async function waitForServer(url, timeout) {
 }
 
 /**
- * Serves a notebook with `marimo run` and opens it in headless Chromium (WebGL by SwiftShader).
+ * Opens a page in headless Chromium (WebGL by SwiftShader), logging what goes wrong.
  *
- * @param {string} notebook the notebook's path from the repository root
+ * @param {string} url
  * @param {object} [options]
- * @param {Record<string, string>} [options.env] more environment for marimo and its kernel
  * @param {(context: import("playwright").BrowserContext) => Promise<void>} [options.route]
- *   routes the browser's requests before it opens the notebook, as the stand-ins for PDOK and
+ *   routes the browser's requests before it opens the page, as the stand-ins for PDOK and
  *   OSM do
+ * @param {string} [options.name] the name of the screenshot a failed wait leaves in OUT
+ * @param {{ width: number, height: number }} [options.viewport]
  * @returns {Promise<{
  *   page: import("playwright").Page,
  *   errors: string[],
@@ -53,35 +54,15 @@ async function waitForServer(url, timeout) {
  *   close: () => Promise<void>,
  * }>} the page; the console errors, page errors, a second three.js and any request to esm.sh
  *   it logs; a wait for a locator that on timeout fails with what the page logged (and saves a
- *   screenshot of the page in OUT); and what stops marimo and the browser
+ *   screenshot of the page in OUT); and what closes the browser
  */
-export async function openNotebook(notebook, { env = {}, route } = {}) {
-  const port = await freePort();
-  const marimo = spawn(
-    "uv",
-    [
-      "run",
-      "marimo",
-      "run",
-      notebook,
-      "--headless",
-      "--no-token",
-      "--no-sandbox",
-      "--port",
-      `${port}`,
-    ],
-    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"], env: { ...process.env, ...env } },
-  );
-  let browser;
-  async function close() {
-    await browser?.close();
-    marimo.kill();
-  }
+export async function openPage(
+  url,
+  { route, name = "page", viewport = { width: 1280, height: 1000 } } = {},
+) {
+  const browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
   try {
-    const url = `http://127.0.0.1:${port}/`;
-    await waitForServer(url, 2 * MINUTE);
-    browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
-    const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+    const context = await browser.newContext({ viewport });
     const errors = [];
     // The bundle is self-contained: the CDN it used to import from must not be asked
     await context.route("https://esm.sh/**", async (route) => {
@@ -121,15 +102,59 @@ export async function openNotebook(notebook, { env = {}, route } = {}) {
         await locator.waitFor({ timeout });
       } catch (error) {
         await mkdir(OUT, { recursive: true });
-        const screenshot = path.join(OUT, `${path.basename(notebook, ".py")}.png`);
+        const screenshot = path.join(OUT, `${name}.png`);
         await page.screenshot({ path: screenshot, fullPage: true }).catch(() => {});
         assert.fail(`${error.message}\n\nThe page logged:\n${log.slice(-40).join("\n")}`);
       }
     }
     await page.goto(url);
-    return { page, errors, waitFor, close };
+    return { page, errors, waitFor, close: () => browser.close() };
   } catch (error) {
-    await close();
+    await browser.close();
+    throw error;
+  }
+}
+
+/**
+ * Serves a notebook with `marimo run` and opens it with openPage.
+ *
+ * @param {string} notebook the notebook's path from the repository root
+ * @param {object} [options]
+ * @param {Record<string, string>} [options.env] more environment for marimo and its kernel
+ * @param {(context: import("playwright").BrowserContext) => Promise<void>} [options.route]
+ *   as for openPage
+ * @returns what openPage returns, its close stopping marimo as well
+ */
+export async function openNotebook(notebook, { env = {}, route } = {}) {
+  const port = await freePort();
+  const marimo = spawn(
+    "uv",
+    [
+      "run",
+      "marimo",
+      "run",
+      notebook,
+      "--headless",
+      "--no-token",
+      "--no-sandbox",
+      "--port",
+      `${port}`,
+    ],
+    { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"], env: { ...process.env, ...env } },
+  );
+  try {
+    const url = `http://127.0.0.1:${port}/`;
+    await waitForServer(url, 2 * MINUTE);
+    const opened = await openPage(url, { route, name: path.basename(notebook, ".py") });
+    return {
+      ...opened,
+      async close() {
+        await opened.close();
+        marimo.kill();
+      },
+    };
+  } catch (error) {
+    marimo.kill();
     throw error;
   }
 }
