@@ -68,9 +68,7 @@ from specklewidgets.geo import bag_panden_under, osm_ground_map, pdok_3d_buildin
 # PDOK's 3D Tiles are at ellipsoidal heights, which take the NSGI grids: PROJ fetches them
 pyproj.network.set_network_enabled(True)
 bdf = bpl.read_ifc(bpl.data.fetch("sixty5_O-S1-CON-structural-engineering.ifc"))
-crs = bpl.derived_engineering_crs(
-    "EPSG:7415", 160_071.5, 384_156.5, 18.625, -50.36, unit=bdf, name="Sixty5"
-)
+crs = bpl.site_crs("EPSG:7415", 160_071.5, 384_156.5, 18.625, -50.36, unit=bdf, name="Sixty5")
 site = bpl.set_crs(bdf, crs)  # Sixty5 at Strijp-S, Eindhoven
 panden = bag_panden_under(bpl.simple_features(site))  # the BAG panden under the model
 ground_map = osm_ground_map(site)  # 150 m of map around the model
@@ -205,8 +203,8 @@ to v3 objects.
     loaded), `hidden_features` (the features of those tiles that `hide_within` leaves out)
     and `hidden_heights` (`[zmin, zmax]` of those features in metres, `[]` for none: the
     building the model takes the place of should stand where the model does).
-- `specklewidgets.geo`, for a BimDataFrame in a georeferenced CRS such as the Engineering CRS
-  of `bimpolars.derived_engineering_crs`. The viewer's world goes to
+- `specklewidgets.geo`, for a BimDataFrame in a georeferenced CRS such as the site CRS
+  of `bimpolars.site_crs`. The viewer's world goes to
   ECEF and back through one 4x4, `bimpolars.linearized_site_to_ecef`, for the map, the
   tiles and the panden alike, so they line up with each other exactly and with PROJ's own
   transformation to a centimetre around a site, and to its own accuracy. In the Netherlands

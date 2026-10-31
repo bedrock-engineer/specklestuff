@@ -15,8 +15,8 @@ Strijp-S.
   BimDataFrame's CRS (`_World`), and between ECEF and longitude/latitude with pyproj's
   EPSG:4978/4979 conversion: the ground map, the 3D BAG (`ecef_to_world` is its inverse) and
   the BAG panden line up with each other exactly, and with PROJ's own transformation (by way of
-  the Engineering CRS's base, as `with_geog` goes) to under a centimetre over Sixty5
-  (`test_the_viewers_world_is_proj_to_a_centimetre`).
+  the compound CRS the site CRS is derived from, as `with_geog` goes) to under a centimetre over
+  Sixty5 (`test_the_viewers_world_is_proj_to_a_centimetre`).
 - A model must sit near its CRS's origin: a frame in EPSG:7415 would be linearized at RD's
   origin, off the map.
 
