@@ -3,7 +3,8 @@ import path from "node:path";
 import { defineConfig } from "vite";
 
 // Whose page this is: specklestuff's, or bimpolars' (its Pages workflow sets SITE=bimpolars).
-// site/intro/<SITE>.html is the header: its h1 the title, the rest the intro.
+// site/intro/<SITE>.html is the header: its h1 the title, the rest the intro, and its
+// <meta name="description"> the link preview's text.
 const site = process.env.SITE || "specklestuff";
 
 // The demo page for GitHub Pages: site/index.html and what it imports, the npm package
@@ -29,18 +30,19 @@ export default defineConfig({
             .replace(/<[^>]*>/g, "")
             .replace(/\s+/g, " ")
             .trim();
-        // The intro's paragraphs as sentences, the arrow that points at the viewer below left out
-        const paragraphs = rest.split("</p>").map(text).filter(Boolean);
-        const description = paragraphs
-          .map((paragraph, i) => {
-            let sentence = paragraph.replace(/^↓\s*/, "");
-            if (sentence !== paragraph && !paragraphs[i - 1]?.endsWith(":")) {
-              sentence = sentence[0].toUpperCase() + sentence.slice(1);
-            }
-            return /[.:!?]$/.test(sentence) ? sentence : `${sentence}.`;
-          })
-          .join(" ")
-          .replaceAll('"', "&quot;");
+        // The link preview's text, written for it rather than taken from the intro, which points
+        // at the viewer below. Its paragraphs are rewrapped and rejoined with a blank line: apps
+        // that keep line breaks in a preview show them, the others a space. It stays escaped as
+        // the attribute value it was.
+        const meta = intro.match(/<meta\s+name="description"\s+content="([^"]*)"\s*\/?>/);
+        if (!meta) {
+          throw new Error(`site/intro/${site}.html has no <meta name="description" content="...">`);
+        }
+        const description = meta[1]
+          .split(/\n\s*\n/)
+          .map(text)
+          .filter(Boolean)
+          .join("\n\n");
         return html
           .replaceAll("<!-- title -->", text(h1))
           .replaceAll("<!-- description -->", description)
