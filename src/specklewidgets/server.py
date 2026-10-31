@@ -4,7 +4,7 @@ A Speckle server publishes a version in one or both of Speckle's data models: as
 (the JSON object graph the viewer draws) and, since Speckle 4, as a *bundle* (Parquet tables
 of properties, scene graph and geometry). A version that exists only as a bundle (its
 ``referencedObject`` is ``bundle.<project>.<model>.<version>``) has no v3 objects on the
-server: :func:`receive` downloads the bundle and projects it to v3 objects with
+server: :func:`receive` downloads the bundle and builds its v3 objects from it with
 :func:`bimpolars.bundle.bundle_objects`, so every version comes back as both, ready for
 :class:`~specklewidgets.SpeckleViewer` and :func:`bimpolars.read_speckle`.
 :func:`send` publishes a BimDataFrame as a new version, as the v3 objects of
@@ -99,8 +99,7 @@ class ReceivedVersion:
             files, or None when the server has no bundle for it (a Speckle 2 server, or a
             version older than the server's bundles).
         v3_route: Where the v3 objects come from: ``"server"`` when the server has them,
-            ``"projected"`` when the version is bundle-only and they are projected from the
-            bundle.
+            ``"bundle"`` when the version is bundle-only and they are built from the bundle.
     """
 
     server: str
@@ -109,7 +108,7 @@ class ReceivedVersion:
     version_id: str
     objects: list[SpeckleObject]
     bundle: Path | None
-    v3_route: Literal["server", "projected"]
+    v3_route: Literal["server", "bundle"]
 
     def bimdataframe(self, *, name: str | None = None) -> BimDataFrame:
         """Reads the version into a BimDataFrame: its objects, with its bundle if it has one.
@@ -227,9 +226,10 @@ def receive(
     The bundle's files (geometry shards included) are downloaded into
     ``<directory>/<model id>/<version id>/``, the layout of the bimpolars bucket's
     ``speckle-bundle`` folder. The v3 objects come from the server when it has them, and are
-    otherwise projected from the bundle by :func:`bimpolars.bundle.bundle_objects`, which
-    keeps the geometry of placed elements and the materials of instance definitions that
-    specklepy's own projection loses. The version is not marked as received.
+    otherwise built from the bundle by :func:`bimpolars.bundle.bundle_objects`, which keeps
+    the geometry of placed elements and the materials of instance definitions that
+    specklepy's own ``Model.to_base()`` (``specklepy.bundle.base_projection``) loses. The
+    version is not marked as received.
 
     Args:
         client: A client signed in to the server, from :func:`local_client` or
@@ -293,7 +293,7 @@ def receive(
         version_id=version.id,
         objects=objects,
         bundle=folder if files else None,
-        v3_route="projected" if bundle_only else "server",
+        v3_route="bundle" if bundle_only else "server",
     )
 
 

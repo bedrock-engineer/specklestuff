@@ -37,7 +37,7 @@ def _(mo):
     [bimpolars](https://github.com/bedrock-engineer/bimpolars) BimDataFrame, draws it, and
     sends the BimDataFrame back as a new version. The defaults pick the architectural model of
     Autodesk's Revit Advanced Sample Project on app.speckle.systems, the version the bimpolars
-    test data comes from; it exists only as a bundle, so its v3 objects are projected from it.
+    test data comes from; it exists only as a bundle, so its v3 objects are built from it.
 
     The notebook signs in with this machine's Speckle account for the server (Speckle Manager's
     or a connector's). Without one, paste a personal access token into the field below: it
@@ -101,7 +101,7 @@ def _(client, mo, model_id, project_id, receive, receive_button, version_id):
     bdf = received.bimdataframe()
     mo.md(
         f"Version `{received.version_id}`: {len(received.objects):,} v3 objects "
-        + ("projected from its bundle" if received.v3_route == "projected" else "from the server")
+        + ("built from its bundle" if received.v3_route == "bundle" else "from the server")
         + (f", the bundle in `{received.bundle}`" if received.bundle else ", no bundle")
         + f"; {len(bdf):,} rows."
     )

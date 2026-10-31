@@ -19,11 +19,11 @@ def ref(object_id: str) -> dict[str, str]:
 
 
 def revit_like(root_id: str = "root-a") -> list[dict[str, Any]]:
-    """A model shaped like specklepy's projection of a Revit bundle, root first.
+    """A model shaped like the v3 objects specklepy builds from a Revit bundle, root first.
 
     One wall with its own mesh, and a door: an instance of def-1, whose member def-geo-0 is a
     DataObject named geometry displaying a Mesh with the same applicationId. The root lists
-    that DataObject twice, as the projection does for some members.
+    that DataObject twice, as those v3 objects do for some members.
     """
     return [
         {

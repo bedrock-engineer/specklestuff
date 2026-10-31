@@ -179,9 +179,9 @@ to v3 objects.
   adjusts three things in raw models that trip the viewer (2.31.14): it prefixes the ids of
   each model's instance definitions and their members with the model's root id, so that the
   `def-1` of one model does not select the instances of another; it keeps a member id on the
-  mesh only when the mesh's DataObject carries it too (as specklepy's projection of a bundle
-  writes `def-geo-<n>`), where the viewer would stop looking for members halfway; and it lists
-  each object once in a collection, where the viewer would leave a member's extra copies at
+  mesh only when the mesh's DataObject carries it too (as the v3 objects specklepy builds from
+  a bundle write `def-geo-<n>`), where the viewer would stop looking for members halfway; and
+  it lists each object once in a collection, where the viewer would leave a member's extra copies at
   the definition's origin and draw none of its instances. Ids are otherwise left alone.
 - `GeoSpeckleViewer(models=None, *, ground_map=None, tilesets=None, **kwargs)`: a
   `SpeckleViewer` (`color` and `markers` included) with the model's surroundings, in the
@@ -263,8 +263,8 @@ to v3 objects.
     first, and `bundle`, the folder its bundle is downloaded into,
     `<directory>/<model id>/<version id>/` (a temporary folder by default, removed again
     when the receive fails; None when the server has no bundle for it). A bundle-only
-    version's objects are projected from its bundle by `bimpolars.bundle.bundle_objects`
-    (`v3_route` `"projected"`, else `"server"`). `ReceivedVersion.bimdataframe()` reads it
+    version's objects are built from its bundle by `bimpolars.bundle.bundle_objects`
+    (`v3_route` `"bundle"`, else `"server"`). `ReceivedVersion.bimdataframe()` reads it
     with `bimpolars.read_speckle`, objects and bundle; for the Revit Advanced Sample's
     architectural version that is the bimpolars bucket's frame.
   - `send(client, bdf, project_id, model_id, *, message=None, color=None, name=None)`: sends

@@ -8,8 +8,8 @@ receives a version, compares it with the bucket's frame and sends it back; it ha
 ## Dependencies
 
 - It needs `bimpolars[speckle]`: `specklepy[bundle]` (its bundle download imports pyarrow) and
-  `bimpolars.bundle.bundle_objects` (the projection of a bundle-only version with the two fixes
-  specklepy's `to_base` lacks; never specklepy's own `operations.receive` of a bundle
+  `bimpolars.bundle.bundle_objects` (the v3 objects built from a bundle-only version, with the
+  two fixes specklepy's `to_base` lacks; never specklepy's own `operations.receive` of a bundle
   reference, which is the plain `to_base`).
 - It uses specklepy's deprecated v3 pipeline on purpose (issue #4: until Speckle opens its
   bundle code; no upstream bug reports) and silences only those DeprecationWarnings, by message

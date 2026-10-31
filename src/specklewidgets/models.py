@@ -5,19 +5,19 @@ A model is a Speckle version's v3 objects, its root first, as
 models trip the viewer (``@speckle/viewer`` 2.31.14), and :func:`models_gz` adjusts them:
 
 - Several models load side by side in one viewer, but the ids of their instance definitions
-  are only unique within a model: the projection of a Revit bundle numbers them ``def-1``,
-  ``def-2``, ... in every model, and their members ``def-geo-0``, ``nested-inst-0``, ... So the
-  ids of the definitions and their members get the model's root id as a prefix, everywhere the
-  model names them.
+  are only unique within a model: the v3 objects built from a Revit bundle number them
+  ``def-1``, ``def-2``, ... in every model, and their members ``def-geo-0``,
+  ``nested-inst-0``, ... So the ids of the definitions and their members get the model's root
+  id as a prefix, everywhere the model names them.
 - The viewer finds the members of the definitions by walking the model's tree and counting
-  down the objects that carry a member id, and stops when the count reaches zero. specklepy's
-  projection of a bundle gives a member's DataObject (named ``geometry``) and the Mesh it
-  displays the same id, ``def-geo-<n>``, so the count runs out halfway: the viewer logs
-  "Consumable applicationId ... could not be found" for the rest and draws none of their
+  down the objects that carry a member id, and stops when the count reaches zero. The v3
+  objects specklepy builds from a bundle give a member's DataObject (named ``geometry``) and
+  the Mesh it displays the same id, ``def-geo-<n>``, so the count runs out halfway: the viewer
+  logs "Consumable applicationId ... could not be found" for the rest and draws none of their
   instances (13 of the 27 members of the RVT structural model). So such an id stays on the
   Mesh, the object the viewer settles on when it finds both, and the DataObject loses it.
 - The viewer takes a member out of the tree once it has found it, to draw it only where an
-  instance places it. The projection lists some members' DataObjects several times in the
+  instance places it. Those v3 objects list some members' DataObjects several times in the
   root collection (99 in the RVT architectural model), and the viewer takes out one copy: the
   others stay where the definition has them, and keep every instance of the mesh from being
   drawn (1638 meshes of 1368 instances in the architectural model). So a collection lists
