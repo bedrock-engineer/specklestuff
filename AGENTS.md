@@ -38,8 +38,10 @@ a few minutes; the e2e workflow runs only when started by hand.
   reply or PR, not by adding an e2e test. Add no e2e tests for layout or styling; keep unit
   tests for logic. When a change of yours breaks an existing e2e test for a detail that changed
   on purpose, update or drop that test and say so.
-- Python: typed (`mypy --strict`), Google-style docstrings (ruff `D`), `uv` + hatchling,
-  Python >= 3.12.
+- Python: typed (`mypy --strict`), `uv` + hatchling, Python >= 3.12, Google-style docstrings
+  in the shape marimo's documentation panel renders: read
+  [docstrings.md](docs/agents/docstrings.md) before writing one. ruff `D` and
+  `tests/test_docstrings.py` check it.
 - Trait names stay the JSON wire format; facades only translate arguments.
   `packages/geospeckle-viewer/src/lib/types.ts` is the TS mirror of the trait comments, and
   `src/index.ts`'s defaults mirror the traits' defaults: change them together.

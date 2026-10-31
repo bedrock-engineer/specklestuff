@@ -1,14 +1,14 @@
-"""A BimDataFrame as a Speckle model for the viewer: :func:`bim_objects`.
+"""A BimDataFrame as a Speckle model for the viewer: ``bim_objects``.
 
-:class:`bimpolars.BimDataFrame` holds a BIM model as one row per element, its geometry in the
+``bimpolars.BimDataFrame`` holds a BIM model as one row per element, its geometry in the
 ``mesh`` column (faces sorted by style) in the model CRS's length unit. The viewer draws
-Speckle v3 objects, so :func:`bim_collection` turns the rows into specklepy objects: one
+Speckle v3 objects, so ``bim_collection`` turns the rows into specklepy objects: one
 ``DataObject`` per row with a mesh, its geometry as one ``Mesh`` per style in ``displayValue``
 and its data next to it, grouped into one ``Collection`` per class under a root
 ``Collection``. A style becomes a ``RenderMaterial`` (its name, colour and opacity), or a
-column's values become the colours (``color``). :func:`bim_objects` serializes the tree to v3
-objects with specklepy, root first: a model as :class:`~specklewidgets.SpeckleViewer` and
-:func:`~specklewidgets.models_gz` take it.
+column's values become the colours (``color``). ``bim_objects`` serializes the tree to v3
+objects with specklepy, root first: a model as ``SpeckleViewer`` and
+``models_gz`` take it.
 
 This module needs bimpolars, which comes with any BimDataFrame; the rest of the package does
 not import it, nor specklepy.
@@ -68,7 +68,7 @@ CATEGORICAL_RGB: tuple[Rgb, ...] = tuple(
 )
 """The colours of a categorical ``color`` column, in order: blue, orange, aqua, yellow,
 magenta, green, violet, red. The most common value takes the first; the values past the
-eighth share :data:`OTHER_RGB`."""
+eighth share ``OTHER_RGB``."""
 
 SEQUENTIAL_RGB: tuple[Rgb, ...] = tuple(
     _hex_rgb(code)
@@ -123,7 +123,7 @@ _UNCLASSIFIED = "unclassified"
 """The name of the collection of rows without a class."""
 
 _JSON_PIPELINE_DEPRECATION = r".*JSON based send/receive pipelines are deprecated"
-"""The DeprecationWarning of specklepy's v3 serializer, which :func:`bim_objects` uses on
+"""The DeprecationWarning of specklepy's v3 serializer, which ``bim_objects`` uses on
 purpose: the viewer reads v3 objects."""
 
 
@@ -132,24 +132,25 @@ def bim_objects(
 ) -> list[SpeckleObject]:
     """Turns a BimDataFrame into the v3 objects of one Speckle model, root first.
 
-    The objects are those of :func:`bim_collection`, serialized with specklepy: each object
+    The objects are those of ``bim_collection``, serialized with specklepy: each object
     gets its content hash as ``id``, the large vertex and face lists go into DataChunks, and
     the root lists every object below it in its ``__closure``. That is the model format of
-    :class:`~specklewidgets.SpeckleViewer` and :func:`~specklewidgets.models_gz`, and of a
+    ``SpeckleViewer`` and ``models_gz``, and of a
     Speckle server.
 
     Args:
-        bdf: The model.
-        color: Colours the elements by a column (its name) or an expression instead of by
-            their styles; see :func:`bim_collection`.
-        name: The root collection's name; the CRS's name by default.
+        bdf (BimDataFrame): The model.
+        color (str | pl.Expr | None): Colours the elements by a column (its name) or an expression
+            instead of by their styles; see ``bim_collection``.
+        name (str | None): The root collection's name; the CRS's name by default.
 
     Returns:
-        The parsed objects, the root first and the objects of its closure after it.
+        list[SpeckleObject]: The parsed objects, the root first and the objects of its closure after
+        it.
 
     Raises:
-        ValueError: If a drawn row has no ``id`` or shares it with another, or ``color``
-            does not give one value per row.
+        ValueError: If a drawn row has no ``id``, or shares it with another.
+        ValueError: If ``color`` does not give one value per row.
         TypeError: If ``color`` gives a nested or binary column.
     """
     root = bim_collection(bdf, color=color, name=name)
@@ -170,14 +171,14 @@ def bim_collection(
     """Turns a BimDataFrame into a specklepy Collection: one DataObject per drawn row.
 
     The drawn rows are those with a ``mesh``, except the classes of
-    :data:`bimpolars.gltf.EXCLUDED_CLASSES` (an ``IfcOpeningElement``'s mesh is the void it
-    cuts), as :func:`bimpolars.element_meshes_glb` leaves them out. Each becomes a
+    ``bimpolars.gltf.EXCLUDED_CLASSES`` (an ``IfcOpeningElement``'s mesh is the void it
+    cuts), as ``bimpolars.element_meshes_glb`` leaves them out. Each becomes a
     ``DataObject``:
 
     - ``applicationId``: the row's ``id``, which a click on the element reports.
     - ``name``: the row's ``name``, else its ``id``; ``category``: its ``class``.
     - The property sets of the ``properties`` column, each at the path its name gives, the
-      dotted path of a group in a Speckle object as :func:`bimpolars.read_speckle` names
+      dotted path of a group in a Speckle object as ``bimpolars.read_speckle`` names
       them: ``properties.Parameters.Dimensions`` in ``properties`` → ``Parameters``,
       ``object`` as the object's own fields, and an IFC property set such as
       ``Pset_WallCommon`` as a field of that name.
@@ -196,29 +197,29 @@ def bim_collection(
     Collection. Each style, a ``(name, rgba)`` of the meshes' ``styles``, becomes a
     ``RenderMaterial`` with that colour and opacity, in a ``RenderMaterialProxy`` on the root
     that targets the style's meshes; unstyled faces (a null ``name``) get none, so the viewer
-    draws them in its default grey and :func:`bimpolars.read_speckle` reads them back
+    draws them in its default grey and ``bimpolars.read_speckle`` reads them back
     unstyled.
 
     With ``color``, the values of a column colour the elements instead: one mesh per element,
     and a proxy per colour that targets the elements. A numeric column goes through
-    :data:`SEQUENTIAL_RGB` in ten equal steps from its minimum to its maximum, any other
-    through :data:`CATEGORICAL_RGB` by how many rows have the value, most first; a null value
-    and the values past the eighth get :data:`OTHER_RGB`. Each material is named after what
+    ``SEQUENTIAL_RGB`` in ten equal steps from its minimum to its maximum, any other
+    through ``CATEGORICAL_RGB`` by how many rows have the value, most first; a null value
+    and the values past the eighth get ``OTHER_RGB``. Each material is named after what
     it shows, such as ``class: IfcWall`` or ``Volume: 1.2 to 2.4``.
 
     Args:
-        bdf: The model.
-        color: Colours the elements by a column, named, or by an expression on the frame
-            (``pl.col("properties").struct.field("Pset_WallCommon").struct.field(
+        bdf (BimDataFrame): The model.
+        color (str | pl.Expr | None): Colours the elements by a column, named, or by an expression
+            on the frame (``pl.col("properties").struct.field("Pset_WallCommon").struct.field(
             "IsExternal")``) instead of by their styles. None: by their styles.
-        name: The root collection's name; the CRS's name by default.
+        name (str | None): The root collection's name; the CRS's name by default.
 
     Returns:
-        The root Collection, its ``renderMaterialProxies`` set.
+        Collection: The root Collection, its ``renderMaterialProxies`` set.
 
     Raises:
-        ValueError: If a drawn row has no ``id`` or shares it with another, or ``color``
-            does not give one value per row.
+        ValueError: If a drawn row has no ``id``, or shares it with another.
+        ValueError: If ``color`` does not give one value per row.
         TypeError: If ``color`` gives a nested or binary column.
     """
     frame = bdf.frame
@@ -303,7 +304,7 @@ def bim_collection(
 
 
 class _RowMeshes:
-    """The meshes of a ``mesh`` column, sliced per row from :func:`bimpolars.mesh.mesh_arrays`."""
+    """The meshes of a ``mesh`` column, sliced per row from ``bimpolars.mesh.mesh_arrays``."""
 
     def __init__(self, mesh: pl.Series, scale: float) -> None:
         self._arrays = mesh_arrays(mesh)
@@ -369,7 +370,7 @@ def _colours(values: pl.Series) -> tuple[list[tuple[str, Rgb]], list[int]]:
 
 
 def _numeric_colours(values: pl.Series, label: str) -> tuple[list[tuple[str, Rgb]], list[int]]:
-    """Ten equal steps of :data:`SEQUENTIAL_RGB` from the minimum to the maximum."""
+    """Ten equal steps of ``SEQUENTIAL_RGB`` from the minimum to the maximum."""
     numbers = values.fill_nan(None).to_numpy()
     finite = np.isfinite(numbers)
     colours: list[tuple[str, Rgb]] = [(f"{label}: no value", OTHER_RGB)]
@@ -392,7 +393,7 @@ def _numeric_colours(values: pl.Series, label: str) -> tuple[list[tuple[str, Rgb
 
 
 def _categorical_colours(values: pl.Series, label: str) -> tuple[list[tuple[str, Rgb]], list[int]]:
-    """:data:`CATEGORICAL_RGB` by how many rows have each value; the rest grey."""
+    """``CATEGORICAL_RGB`` by how many rows have each value; the rest grey."""
     counts = (
         values.rename("value")
         .drop_nulls()
@@ -418,10 +419,10 @@ def _row_fields(frame: pl.DataFrame) -> list[dict[str, Any]]:
     """Per row, the DataObject's fields: its property sets at their paths and its columns.
 
     A property set's name is the dotted path of its group in a Speckle object, as
-    :func:`bimpolars.read_speckle` names them, so each set goes back to that path:
+    ``bimpolars.read_speckle`` names them, so each set goes back to that path:
     ``properties.Parameters.Dimensions`` into ``properties`` → ``Parameters`` →
     ``Dimensions``, an IFC property set such as ``Pset_WallCommon`` into a field of that
-    name, and :data:`bimpolars.speckle.OBJECT_SET` into the object's own fields. The columns
+    name, and ``bimpolars.speckle.OBJECT_SET`` into the object's own fields. The columns
     other than those the DataObject is made of (and the geometry) follow as fields of their
     own. Nulls are left out.
     """

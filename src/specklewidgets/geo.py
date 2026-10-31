@@ -1,21 +1,21 @@
-"""The surroundings of a georeferenced BimDataFrame, for :class:`~specklewidgets.GeoSpeckleViewer`.
+"""The surroundings of a georeferenced BimDataFrame, for ``GeoSpeckleViewer``.
 
-A BimDataFrame in the georeferenced BIM CRS of :func:`bimpolars.geobim.georeferenced_bim_crs`
-(declared with :func:`bimpolars.geobim.set_crs`) knows where it is on earth. From that,
-:func:`osm_ground_map` lays an OpenStreetMap snapshot under the model,
-:func:`pdok_3d_buildings` places the buildings of PDOK's 3D Basisvoorziening (the 3D BAG)
-around it, cut to the area by :func:`site_3d_tiles`, and :func:`bag_panden_under` finds the
+A BimDataFrame in the georeferenced BIM CRS of ``bimpolars.geobim.georeferenced_bim_crs``
+(declared with ``bimpolars.geobim.set_crs``) knows where it is on earth. From that,
+``osm_ground_map`` lays an OpenStreetMap snapshot under the model,
+``pdok_3d_buildings`` places the buildings of PDOK's 3D Basisvoorziening (the 3D BAG)
+around it, cut to the area by ``site_3d_tiles``, and ``bag_panden_under`` finds the
 BAG panden the model takes the place of, which ``hide_within`` then leaves out of the 3D BAG.
 
 The viewer's world is the model's coordinates in metres. One 4x4 matrix,
-:func:`bimpolars.geobim.linearized_site_to_ecef`, takes it to ECEF and back for the ground
+``bimpolars.geobim.linearized_site_to_ecef``, takes it to ECEF and back for the ground
 map, the panden and the tiles alike, so that the three line up with each other exactly; over
 the few hundred metres around a site it strays from PROJ's own transformation by
 millimetres. The ground map and the 3D BAG cover the model's plan extent and a margin around
 it.
 
 This module needs bimpolars, which comes with any BimDataFrame, and with it pyproj.
-:func:`site_3d_tiles` and :func:`bag_panden_under` read PDOK's APIs on api.pdok.nl; the browser
+``site_3d_tiles`` and ``bag_panden_under`` read PDOK's APIs on api.pdok.nl; the browser
 fetches the map tiles and the 3D BAG's tiles itself.
 """
 
@@ -53,7 +53,7 @@ PDOK_3D_BUILDINGS = (
 """The 3D Tiles of PDOK's 3D Basisvoorziening buildings (LoD 2.2): the 3D BAG."""
 
 PDOK_3D_ATTRIBUTION = "3D Basisvoorziening © Kadaster (CC BY 4.0)"
-"""The credit line for :data:`PDOK_3D_BUILDINGS`."""
+"""The credit line for ``PDOK_3D_BUILDINGS``."""
 
 PDOK_BAG_PANDEN = "https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items"
 """The BAG's panden (buildings) in PDOK's OGC API Features, in OGC:CRS84."""
@@ -87,20 +87,20 @@ def osm_ground_map(
     corners), and to a few centimetres over a kilometre or two.
 
     Args:
-        bdf: The model, in a georeferenced CRS such as the georeferenced BIM CRS of
-            :func:`bimpolars.geobim.georeferenced_bim_crs`, with its ``bbox`` column.
-        margin: Metres of map around the model's plan extent.
-        width: The map image's width in pixels; its height follows from the bounds.
-        z: The map's height in the viewer's world, in metres: 0 is the height of the CRS's
+        bdf (BimDataFrame): The model, in a georeferenced CRS such as the georeferenced BIM CRS of
+            ``bimpolars.geobim.georeferenced_bim_crs``, with its ``bbox`` column.
+        margin (float): Metres of map around the model's plan extent.
+        width (int): The map image's width in pixels; its height follows from the bounds.
+        z (float): The map's height in the viewer's world, in metres: 0 is the height of the CRS's
             origin, the site's ground level in a georeferenced BIM CRS.
-        opacity: The map's opacity, 0..1.
+        opacity (float): The map's opacity, 0..1.
 
     Returns:
-        The ``ground_map`` trait.
+        GroundMap: The ``ground_map`` trait.
 
     Raises:
-        ValueError: If no row has a ``bbox``, or pyproj cannot transform the model CRS to
-            ECEF (a plain EngineeringCRS is not georeferenced).
+        ValueError: If no row has a ``bbox``.
+        ValueError: If pyproj cannot transform the model CRS to ECEF, as for an EngineeringCRS.
     """
     world = _World(bdf.crs)
     west, south, east, north = world.lonlat_bounds(_plan_extent(bdf), margin, z)
@@ -133,7 +133,7 @@ def pdok_3d_buildings(
 ) -> Tileset:
     """The buildings of PDOK's 3D Basisvoorziening around the model, for ``tilesets=[...]``.
 
-    The 3D BAG's finest tiles that overlap ``bounds`` (see :func:`site_3d_tiles`), placed in
+    The 3D BAG's finest tiles that overlap ``bounds`` (see ``site_3d_tiles``), placed in
     the viewer's world, with the buildings mostly within ``hide_within`` left out.
 
     The tiles are at ellipsoidal heights, so they stand on the ground map only where PROJ
@@ -143,23 +143,23 @@ def pdok_3d_buildings(
     float some 44 m above the map.
 
     Args:
-        bdf: The model, in a georeferenced CRS, with its ``bbox`` column.
-        bounds: ``[west, south, east, north]`` in degrees, such as the ``bounds`` of
-            :func:`osm_ground_map`; by default the model's plan extent and ``margin`` metres
-            around it, the area :func:`osm_ground_map` covers.
-        margin: Metres around the model's plan extent, without ``bounds``.
-        hide_within: Polygons or multipolygons in the model's coordinates, such as the
-            values of :func:`bag_panden_under`: a building with more than half of its
+        bdf (BimDataFrame): The model, in a georeferenced CRS, with its ``bbox`` column.
+        bounds (Sequence[float] | None): ``[west, south, east, north]`` in degrees, such as the
+            ``bounds`` of ``osm_ground_map``; by default the model's plan extent and ``margin``
+            metres around it, the area ``osm_ground_map`` covers.
+        margin (float): Metres around the model's plan extent, without ``bounds``.
+        hide_within (Iterable[BaseGeometry]): Polygons or multipolygons in the model's coordinates,
+            such as the values of ``bag_panden_under``: a building with more than half of its
             vertices within one of them is left out, to make room for the model.
-        hide_margin: Metres the ``hide_within`` polygons grow by, so that a building's
+        hide_margin (float): Metres the ``hide_within`` polygons grow by, so that a building's
             vertices on the outline of its pand count as within.
 
     Returns:
-        The ``tilesets`` entry, with PDOK's credit line.
+        Tileset: The ``tilesets`` entry, with PDOK's credit line.
 
     Raises:
-        ValueError: As :func:`osm_ground_map` raises it, or if no tile of the 3D BAG
-            overlaps ``bounds``.
+        ValueError: As ``osm_ground_map`` raises it.
+        ValueError: If no tile of the 3D BAG overlaps ``bounds``.
         urllib.error.URLError: If api.pdok.nl does not answer.
     """
     world = _World(bdf.crs)
@@ -200,12 +200,12 @@ def site_3d_tiles(tileset_url: str, bounds: Sequence[float]) -> dict[str, Any]:
     along with its children's.
 
     Args:
-        tileset_url: The URL of a 3D Tiles tileset whose tiles have region bounding volumes.
-        bounds: ``[west, south, east, north]`` in degrees.
+        tileset_url (str): The URL of a 3D Tiles tileset whose tiles have region bounding volumes.
+        bounds (Sequence[float]): ``[west, south, east, north]`` in degrees.
 
     Returns:
-        A one-level tileset: an empty root over the content tiles, each with its accumulated
-        transform and an absolute content URL.
+        dict[str, Any]: A one-level tileset: an empty root over the content tiles, each with its
+        accumulated transform and an absolute content URL.
 
     Raises:
         ValueError: If no content tile overlaps ``bounds``.
@@ -279,24 +279,24 @@ def bag_panden_under(
 ) -> dict[str, BaseGeometry]:
     """The BAG panden (buildings) with more than half of their area under the model.
 
-    The panden come from PDOK's OGC API (:data:`PDOK_BAG_PANDEN`) and go to the model's
+    The panden come from PDOK's OGC API (``PDOK_BAG_PANDEN``) and go to the model's
     coordinates through the viewer's world, as the 3D BAG's tiles do, so that
     ``pdok_3d_buildings(bdf, hide_within=bag_panden_under(bdf).values())`` leaves exactly
     their buildings out.
 
     Args:
-        bdf: The model, in a georeferenced CRS.
-        footprint: The model's outline in plan, a polygon or multipolygon in its coordinates;
-            by default the union of its ``footprint`` column (see
-            :func:`bimpolars.simple_features`), which for a building is its outline.
+        bdf (BimDataFrame): The model, in a georeferenced CRS.
+        footprint (BaseGeometry | None): The model's outline in plan, a polygon or multipolygon in
+            its coordinates; by default the union of its ``footprint`` column (see
+            ``bimpolars.simple_features``), which for a building is its outline.
 
     Returns:
-        The panden by their ``identificatie``, as polygons in the model's coordinates (x and
-        y; the BAG has no heights).
+        dict[str, BaseGeometry]: The panden by their ``identificatie``, as polygons in the model's
+        coordinates (x and y; the BAG has no heights).
 
     Raises:
-        ValueError: If there is no ``footprint`` to go by, or pyproj cannot transform the
-            model CRS to ECEF.
+        ValueError: If there is no ``footprint`` to go by.
+        ValueError: If pyproj cannot transform the model CRS to ECEF.
         urllib.error.URLError: If api.pdok.nl does not answer.
     """
     world = _World(bdf.crs)

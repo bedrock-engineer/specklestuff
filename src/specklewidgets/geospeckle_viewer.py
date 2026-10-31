@@ -1,10 +1,10 @@
 """Speckle's web viewer with the model's surroundings: a ground map and 3D Tiles around it.
 
-:class:`GeoSpeckleViewer` is :class:`~specklewidgets.SpeckleViewer` with two more traits: an
+``GeoSpeckleViewer`` is ``SpeckleViewer`` with two more traits: an
 OpenStreetMap snapshot on a plane under the model (``ground_map``) and 3D Tiles such as
 PDOK's 3D BAG around it (``tilesets``), each tileset without the buildings that lie mostly
 within its ``hide_within`` polygons, to make room for the model. Both are in the viewer's
-world: the models' coordinates in metres. :mod:`specklewidgets.geo` builds them for a
+world: the models' coordinates in metres. ``specklewidgets.geo`` builds them for a
 georeferenced BimDataFrame.
 """
 
@@ -26,7 +26,7 @@ class GroundMap(TypedDict):
 
     The front end draws OpenStreetMap's tiles over ``bounds`` into a ``width`` x ``height``
     image and lays it on a plane whose corners are the bounds' corners through
-    ``lnglat_to_world``. :func:`specklewidgets.geo.osm_ground_map` builds one.
+    ``lnglat_to_world``. ``specklewidgets.geo.osm_ground_map`` builds one.
     """
 
     bounds: list[float]
@@ -47,12 +47,12 @@ class GroundMap(TypedDict):
 class Tileset(TypedDict):
     """3D Tiles around the model: an entry of the ``tilesets`` trait.
 
-    :func:`specklewidgets.geo.pdok_3d_buildings` builds one.
+    ``specklewidgets.geo.pdok_3d_buildings`` builds one.
     """
 
     tileset: dict[str, Any]
     """The tileset JSON, its content URLs absolute (a ``tileset.json`` as 3D Tiles 1.1 has
-    it; :func:`specklewidgets.geo.site_3d_tiles` cuts one to an area)."""
+    it; ``specklewidgets.geo.site_3d_tiles`` cuts one to an area)."""
     ecef_to_world: list[float]
     """A 4x4 matrix, column-major, from ECEF (EPSG:4978), where the tiles are, to the
     viewer's world."""
@@ -65,14 +65,30 @@ class Tileset(TypedDict):
 
 
 class GeoSpeckleViewer(SpeckleViewer):
-    """:class:`~specklewidgets.SpeckleViewer` with the model's surroundings.
+    """``SpeckleViewer`` with the model's surroundings.
 
     ``GeoSpeckleViewer(models, ground_map=..., tilesets=[...])`` draws the models as
-    :class:`~specklewidgets.SpeckleViewer` does, on a ground map and among 3D Tiles, all in
+    ``SpeckleViewer`` does, on a ground map and among 3D Tiles, all in
     the viewer's world: the models' coordinates in metres. For a georeferenced BimDataFrame,
-    :mod:`specklewidgets.geo` builds both. The map and the tiles are not elements:
+    ``specklewidgets.geo`` builds both. The map and the tiles are not elements:
     ``object_count`` and ``scene_bbox`` leave them out and a click does not select them. The
     front end reports what they show in ``surroundings``.
+
+    Args:
+        models (ViewerModel | Sequence[ViewerModel] | None): One model or a sequence of
+            models, as for ``SpeckleViewer``.
+        color (str | pl.Expr | None): Colours the elements of the BimDataFrames by a column
+            or a polars expression, as for ``SpeckleViewer``.
+        markers (Sequence[Marker | Mapping[str, Any]] | None): Axes with a label
+            (→ ``markers``).
+        ground_map (GroundMap | Mapping[str, Any] | None): The map under the model
+            (→ ``ground_map``), such as ``specklewidgets.geo.osm_ground_map`` gives it.
+        tilesets (Sequence[Tileset | Mapping[str, Any]] | None): 3D Tiles around the model
+            (→ ``tilesets``), such as ``specklewidgets.geo.pdok_3d_buildings`` gives them.
+        **kwargs (Any): Traits, passed through unchanged, such as ``height=600``.
+
+    Raises:
+        ValueError: As ``SpeckleViewer`` raises it.
     """
 
     _esm = _STATIC / "geospeckle-viewer.js"
@@ -102,20 +118,6 @@ class GeoSpeckleViewer(SpeckleViewer):
         tilesets: Sequence[Tileset | Mapping[str, Any]] | None = None,
         **kwargs: Any,
     ) -> None:
-        """Pythonic facade over the JSON-flat traits.
-
-        Args:
-            models: One model or a sequence of models, as for
-                :class:`~specklewidgets.SpeckleViewer`.
-            color: Colours the elements of the BimDataFrames by a column or a polars
-                expression, as for :class:`~specklewidgets.SpeckleViewer`.
-            markers: Axes with a label (→ ``markers``).
-            ground_map: The map under the model (→ ``ground_map``), such as
-                :func:`specklewidgets.geo.osm_ground_map` gives it.
-            tilesets: 3D Tiles around the model (→ ``tilesets``), such as
-                :func:`specklewidgets.geo.pdok_3d_buildings` gives them.
-            **kwargs: Traits, passed through unchanged, such as ``height=600``.
-        """
         if ground_map is not None:
             kwargs["ground_map"] = dict(ground_map)
         if tilesets is not None:

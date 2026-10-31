@@ -1,8 +1,8 @@
-"""Packs raw Speckle models for the viewer: :func:`models_gz`.
+"""Packs raw Speckle models for the viewer: ``models_gz``.
 
 A model is a Speckle version's v3 objects, its root first, as
-:func:`bimpolars.speckle.version_objects` gives them or as JSON array text. Three things in such
-models trip the viewer (``@speckle/viewer`` 2.31.14), and :func:`models_gz` adjusts them:
+``bimpolars.speckle.version_objects`` gives them or as JSON array text. Three things in such
+models trip the viewer (``@speckle/viewer`` 2.31.14), and ``models_gz`` adjusts them:
 
 - Several models load side by side in one viewer, but the ids of their instance definitions
   are only unique within a model: the v3 objects built from a Revit bundle number them
@@ -54,7 +54,7 @@ _DISPLAY_FIELDS = ("displayValue", _ELEMENTS)
 
 
 def models_gz(*models: Model, compresslevel: int = 6) -> bytes:
-    """Packs models for :attr:`SpeckleViewer.objects_gz`, their instance definitions adjusted.
+    """Packs models for ``SpeckleViewer.objects_gz``, their instance definitions adjusted.
 
     The instance definitions of each model (the root's ``instanceDefinitionProxies``) and
     their members get the model's root id as a prefix, ``<root id>/def-1``, wherever the model
@@ -67,18 +67,19 @@ def models_gz(*models: Model, compresslevel: int = 6) -> bytes:
     elements' own applicationIds, are left as they are.
 
     Args:
-        *models: Each model's v3 objects, root first: parsed (as
-            :func:`bimpolars.speckle.version_objects` gives them) or as JSON array text.
-        compresslevel: The gzip level. At 6 the three Revit Advanced Sample models (53 MB of
+        *models (Model): Each model's v3 objects, root first: parsed (as
+            ``bimpolars.speckle.version_objects`` gives them) or as JSON array text.
+        compresslevel (int): The gzip level. At 6 the three Revit Advanced Sample models (53 MB of
             JSON) pack to 6.0 MB in about 2 s; 9 saves 2 % and takes 20 % longer.
 
     Returns:
-        Gzipped JSON: an array of the models, each an array of its objects. The input is not
+        bytes: Gzipped JSON: an array of the models, each an array of its objects. The input is not
         changed.
 
     Raises:
-        ValueError: If a model is not a list of objects, has none, its first object is not a
-            root with an ``id``, or two models share a root.
+        ValueError: If a model is not a list of objects, or has none.
+        ValueError: If a model's first object is not a root with an ``id``.
+        ValueError: If two models share a root.
     """
     packed = []
     roots: set[str] = set()
