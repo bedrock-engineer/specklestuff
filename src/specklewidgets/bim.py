@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import polars as pl
 from bimpolars.crs import as_linear_unit
+from bimpolars.frame import CRS_COLUMN
 from bimpolars.gltf import EXCLUDED_CLASSES
 from bimpolars.mesh import UNSTYLED_RGBA, mesh_arrays
 from bimpolars.speckle import OBJECT_SET, SPECKLE_UNITS
@@ -94,8 +95,11 @@ grey of faces without a style."""
 PROPERTIES_FIELD = "properties"
 """The DataObject's property bag, where the property sets named ``properties.<group>`` go."""
 
-_ROW_FIELDS = frozenset({"id", "name", "class", "properties", "mesh", "bbox", "native_geom"})
-"""The columns that become the DataObject's own parts rather than a field of the same name."""
+_ROW_FIELDS = frozenset(
+    {"id", "name", "class", "properties", "mesh", "bbox", "native_geom", CRS_COLUMN}
+)
+"""The columns that become the DataObject's own parts rather than a field of the same name;
+``bim_crs`` gives the model's ``units`` and the root's name instead."""
 
 _RESERVED_FIELDS = frozenset(
     {

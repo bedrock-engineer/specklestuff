@@ -127,7 +127,7 @@ wheels = [
 [[package]]
 name = "bimpolars"
 version = "0.1.0"
-source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=main#202ca3f8e7ff6e1fad18aade2a3384717a00ce61" }
+source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=refactor%2F42-bim-crs-column#4d964d18a36a6edeb92e4c124fed8cca4b423282" }
 dependencies = [
     { name = "numpy" },
     { name = "polars" },
@@ -2129,7 +2129,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "bimpolars", extras = ["ifc", "speckle"], git = "https://github.com/bedrock-engineer/bimpolars?branch=main" },
+    { name = "bimpolars", extras = ["ifc", "speckle"], git = "https://github.com/bedrock-engineer/bimpolars?branch=refactor%2F42-bim-crs-column" },
     { name = "marimo", specifier = ">=0.17" },
     { name = "mypy", specifier = ">=1.14" },
     { name = "pytest", specifier = ">=8.3" },

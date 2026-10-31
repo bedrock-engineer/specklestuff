@@ -1,7 +1,7 @@
 """The surroundings of a georeferenced BimDataFrame: specklewidgets.geo on Sixty5.
 
 The structural model of Sixty5 (Strijp-S, Eindhoven) read with read_ifc and placed with its
-site CRS (bimpolars' docs/agents/test-data.md has the numbers). PDOK's APIs are
+georeferenced BIM CRS (bimpolars' docs/agents/test-data.md has the numbers). PDOK's APIs are
 out of reach from some environments (the cloud containers), so the tests of what is read from
 them answer with synthetic tilesets and panden; the tests marked by the ``pdok`` fixture read
 the real ones and skip where api.pdok.nl does not answer.
@@ -51,8 +51,8 @@ def plain() -> Any:
 
 @pytest.fixture(scope="module")
 def site(plain) -> Any:
-    """Sixty5 in its site CRS: the same coordinates, now on earth."""
-    crs = geobim.site_crs(
+    """Sixty5 in its georeferenced BIM CRS: the same coordinates, now on earth."""
+    crs = geobim.georeferenced_bim_crs(
         "EPSG:7415",
         *SIXTY5_ORIGIN,
         SIXTY5_ROTATION,
@@ -146,7 +146,7 @@ def test_the_ground_maps_pixels_are_square_on_the_ground(ground_map):
 
 def test_the_viewers_world_is_proj_to_a_centimetre(site, world):
     # with_geog moves the footprints through PROJ's own transformation, by way of the compound
-    # CRS the site CRS is derived from, where the world goes through one linearized 4x4
+    # CRS the georeferenced BIM CRS is derived from, where the world goes through one linearized 4x4
     features = slabs_and_footings(site)
     geog = geobim.with_geog(features).frame
     rows = geog.filter(pl.col("footprint").is_not_null())
@@ -168,7 +168,7 @@ def test_the_world_stands_at_ellipsoidal_heights(world, grids):
 
 
 def test_a_plain_engineering_crs_is_not_on_earth(plain):
-    with pytest.raises(ValueError, match="EngineeringCRS"):
+    with pytest.raises(ValueError, match="engineering CRS is not georeferenced"):
         geo.osm_ground_map(plain)
 
 
