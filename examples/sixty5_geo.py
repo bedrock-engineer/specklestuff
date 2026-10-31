@@ -15,7 +15,7 @@ def _():
     import pyproj
     import shapely
     from bimpolars import data, read_ifc, simple_features
-    from bimpolars.geobim import set_crs, site_crs
+    from bimpolars.geobim import georeferenced_bim_crs, set_crs
 
     from specklewidgets import GeoSpeckleViewer, Marker
     from specklewidgets.geo import bag_panden_under, osm_ground_map, pdok_3d_buildings
@@ -37,7 +37,7 @@ def _():
         set_crs,
         shapely,
         simple_features,
-        site_crs,
+        georeferenced_bim_crs,
     )
 
 
@@ -48,7 +48,7 @@ def _(mo):
 
     The structural model of Sixty5, a tower at Strijp-S in Eindhoven, read from its IFC with
     [bimpolars](https://github.com/bedrock-engineer/bimpolars) and placed on earth with its
-    site CRS: the site origin at RD New 160071.5, 384156.5 and NAP +18.625 m, the site
+    georeferenced BIM CRS: the site origin at RD New 160071.5, 384156.5 and NAP +18.625 m, the site
     grid turned by -50.36 degrees. `GeoSpeckleViewer` shows it on an OpenStreetMap ground
     map, among the buildings of PDOK's 3D Basisvoorziening (the 3D BAG). Sixty5 is in the 3D
     BAG too: its BAG pand, found under the model's slabs and footings, is left out to make
@@ -61,7 +61,7 @@ def _(mo):
 
 
 @app.cell
-def _(data, math, pyproj, read_ifc, set_crs, site_crs):
+def _(data, math, pyproj, read_ifc, set_crs, georeferenced_bim_crs):
     # PDOK's 3D Tiles stand at ellipsoidal heights, which take the NSGI grids: without them
     # PROJ passes NAP heights off as ellipsoidal ones (bimpolars warns) and the 3D BAG floats
     # 44 m above the map. With the network on, PROJ fetches them from cdn.proj.org
@@ -71,7 +71,7 @@ def _(data, math, pyproj, read_ifc, set_crs, site_crs):
     # finds it in BIMPOLARS_DATA_DIR. The IFC is not georeferenced; IFC-GeoReferencer's
     # export of the architectural model gives the numbers
     bdf = read_ifc(data.fetch("sixty5_O-S1-CON-structural-engineering.ifc"))
-    crs = site_crs(
+    crs = georeferenced_bim_crs(
         "EPSG:7415",
         easting=160_071.5,
         northing=384_156.5,

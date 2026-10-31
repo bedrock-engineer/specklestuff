@@ -27,7 +27,7 @@ import polars as pl
 import pyproj
 import shapely
 from bimpolars import BimDataFrame, data, read_ifc, simple_features
-from bimpolars.geobim import set_crs, site_crs, with_geog
+from bimpolars.geobim import georeferenced_bim_crs, set_crs, with_geog
 from bimpolars.gltf import EXCLUDED_CLASSES
 
 from specklewidgets import GeoSpeckleViewer, Marker
@@ -54,13 +54,15 @@ packages/geospeckle-viewer/src/lib/types.ts."""
 
 
 def sixty5() -> BimDataFrame:
-    """The structural model of Sixty5 in its site CRS, as examples/sixty5_geo.py has it.
+    """The structural model of Sixty5 in its georeferenced BIM CRS, as in the example notebook.
+
+    examples/sixty5_geo.py builds it the same way.
 
     Returns:
         The BimDataFrame in the site grid, in millimetres, on earth through the CRS.
     """
     bdf = read_ifc(data.fetch(IFC))
-    crs = site_crs(
+    crs = georeferenced_bim_crs(
         "EPSG:7415",
         easting=160_071.5,
         northing=384_156.5,

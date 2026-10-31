@@ -1,7 +1,7 @@
 """The surroundings of a georeferenced BimDataFrame, for :class:`~specklewidgets.GeoSpeckleViewer`.
 
-A BimDataFrame in the site CRS of :func:`bimpolars.geobim.site_crs`
-(labelled with :func:`bimpolars.geobim.set_crs`) knows where it is on earth. From that,
+A BimDataFrame in the georeferenced BIM CRS of :func:`bimpolars.geobim.georeferenced_bim_crs`
+(declared with :func:`bimpolars.geobim.set_crs`) knows where it is on earth. From that,
 :func:`osm_ground_map` lays an OpenStreetMap snapshot under the model,
 :func:`pdok_3d_buildings` places the buildings of PDOK's 3D Basisvoorziening (the 3D BAG)
 around it, cut to the area by :func:`site_3d_tiles`, and :func:`bag_panden_under` finds the
@@ -87,12 +87,12 @@ def osm_ground_map(
     corners), and to a few centimetres over a kilometre or two.
 
     Args:
-        bdf: The model, in a georeferenced CRS such as the site CRS of
-            :func:`bimpolars.geobim.site_crs`, with its ``bbox`` column.
+        bdf: The model, in a georeferenced CRS such as the georeferenced BIM CRS of
+            :func:`bimpolars.geobim.georeferenced_bim_crs`, with its ``bbox`` column.
         margin: Metres of map around the model's plan extent.
         width: The map image's width in pixels; its height follows from the bounds.
         z: The map's height in the viewer's world, in metres: 0 is the height of the CRS's
-            origin, the site's ground level in a site CRS.
+            origin, the site's ground level in a georeferenced BIM CRS.
         opacity: The map's opacity, 0..1.
 
     Returns:

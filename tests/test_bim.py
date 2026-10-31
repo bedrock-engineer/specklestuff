@@ -150,6 +150,15 @@ def test_an_element_carries_its_row(bdf):
         assert field not in wall
 
 
+def test_the_crs_column_is_no_field_of_the_objects(bdf):
+    """``bim_crs`` gives the units and the root's name, not a field on every object."""
+    objects = bim.bim_objects(bdf)
+    wall = data_objects(objects)["wall"]
+    assert "bim_crs" not in wall
+    assert "bim_crs" not in wall.get("properties", {})
+    assert objects[0]["name"] == bdf.crs.name
+
+
 def test_an_element_without_a_name_is_named_by_its_id(bdf):
     window = data_objects(bim.bim_objects(bdf))["window"]
     assert window["name"] == "window"
