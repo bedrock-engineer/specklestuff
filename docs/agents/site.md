@@ -27,9 +27,13 @@ before the first paint. `just site-data`,
   outline dotted red). `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
   viewer and the map follow their panes' sizes with ResizeObservers of their own.
 - The header's title and intro are `site/intro/<SITE>.html`, which `vite.config.js` puts into
-  `index.html`, the h1 as the `<title>` and `og:title` too, the intro's text as the
-  description and `og:description` that link previews show: `SITE` is unset (specklestuff) or `bimpolars`, which
-  bimpolars' Pages workflow sets (`SITE=bimpolars just site` builds that one here). The header's two-row hint says how to select; the card
+  `index.html`, the h1 as the `<title>` and `og:title` too: `SITE` is unset (specklestuff) or
+  `bimpolars`, which bimpolars' Pages workflow sets (`SITE=bimpolars just site` builds that one
+  here). The same file's `<meta name="description">` is the description and `og:description`
+  that link previews show, written for a preview rather than taken from the intro (which ends
+  pointing at the viewer): short paragraphs with a blank line between them, which the build
+  rewraps and keeps, as apps that keep line breaks show them and the others a space (joost: "That
+  text needs better formatting"). The header's two-row hint says how to select; the card
   on the map stays empty, and out of sight, until something is selected.
 - `e2e/site.test.mjs` writes the data offline, builds the page into `e2e/.out/site` and serves
   it as Pages does.
