@@ -1,22 +1,22 @@
-"""Receive and send Speckle versions through a Speckle server: :func:`receive`, :func:`send`.
+"""Receive and send Speckle versions through a Speckle server: ``receive``, ``send``.
 
 A Speckle server publishes a version in one or both of Speckle's data models: as v3 objects
 (the JSON object graph the viewer draws) and, since Speckle 4, as a *bundle* (Parquet tables
 of properties, scene graph and geometry). A version that exists only as a bundle (its
 ``referencedObject`` is ``bundle.<project>.<model>.<version>``) has no v3 objects on the
-server: :func:`receive` downloads the bundle and builds its v3 objects from it with
-:func:`bimpolars.bundle.bundle_objects`, so every version comes back as both, ready for
-:class:`~specklewidgets.SpeckleViewer` and :func:`bimpolars.read_speckle`.
-:func:`send` publishes a BimDataFrame as a new version, as the v3 objects of
-:func:`specklewidgets.bim.bim_collection`.
+server: ``receive`` downloads the bundle and builds its v3 objects from it with
+``bimpolars.bundle.bundle_objects``, so every version comes back as both, ready for
+``SpeckleViewer`` and ``bimpolars.read_speckle``.
+``send`` publishes a BimDataFrame as a new version, as the v3 objects of
+``specklewidgets.bim.bim_collection``.
 
 Both use specklepy's v3 pipeline (``ServerTransport``, ``operations.send``,
 ``version.create``), which specklepy deprecates since 2026.9 in favour of its bundle pipeline;
-its DeprecationWarnings are silenced here, by message, as :mod:`specklewidgets.bim` does.
+its DeprecationWarnings are silenced here, by message, as ``specklewidgets.bim`` does.
 
-Signing in: :func:`local_client` uses this machine's Speckle account for the server (Speckle
+Signing in: ``local_client`` uses this machine's Speckle account for the server (Speckle
 Manager's or a connector's, as specklepy's ``get_local_accounts`` finds them), and
-:func:`token_client` a personal access token. The token stays in the client's memory: it is
+``token_client`` a personal access token. The token stays in the client's memory: it is
 never written to disk, so a notebook should take it from a password field such as wigglystuff's
 ``EnvConfig`` (``examples/speckle_receive_send.py``) rather than from its code.
 
@@ -85,21 +85,21 @@ any other GraphQL error is a failure of its own."""
 
 @dataclass(frozen=True)
 class ReceivedVersion:
-    """A Speckle version as :func:`receive` gives it: its v3 objects and its bundle.
+    """A Speckle version as ``receive`` gives it: its v3 objects and its bundle.
 
     Attributes:
-        server: The server's URL, ``https://app.speckle.systems``.
-        project_id: The Speckle project id.
-        model_id: The Speckle model id.
-        version_id: The Speckle version id.
-        objects: The version's v3 objects, parsed, the root first and its closure after it:
-            a model as :class:`~specklewidgets.SpeckleViewer` and
-            :func:`bimpolars.read_speckle` take it.
-        bundle: The folder holding the version's bundle, its ``<name>.<table>.parquet``
-            files, or None when the server has no bundle for it (a Speckle 2 server, or a
-            version older than the server's bundles).
-        v3_route: Where the v3 objects come from: ``"server"`` when the server has them,
-            ``"bundle"`` when the version is bundle-only and they are built from the bundle.
+        server (str): The server's URL, ``https://app.speckle.systems``.
+        project_id (str): The Speckle project id.
+        model_id (str): The Speckle model id.
+        version_id (str): The Speckle version id.
+        objects (list[SpeckleObject]): The version's v3 objects, parsed, the root first and its
+            closure after it: a model as ``SpeckleViewer`` and ``bimpolars.read_speckle`` take it.
+        bundle (Path | None): The folder holding the version's bundle, its
+            ``<name>.<table>.parquet`` files, or None when the server has no bundle for it (a
+            Speckle 2 server, or a version older than the server's bundles).
+        v3_route (Literal["server", "bundle"]): Where the v3 objects come from: ``"server"`` when
+            the server has them, ``"bundle"`` when the version is bundle-only and they are built
+            from the bundle.
     """
 
     server: str
@@ -114,13 +114,13 @@ class ReceivedVersion:
         """Reads the version into a BimDataFrame: its objects, with its bundle if it has one.
 
         The bundle gives the elements their Revit categories, parameters and levels, and the
-        elements the objects lack their rows; see :func:`bimpolars.read_speckle`.
+        elements the objects lack their rows; see ``bimpolars.read_speckle``.
 
         Args:
-            name: The CRS's name; the root's or the bundle's model name by default.
+            name (str | None): The CRS's name; the root's or the bundle's model name by default.
 
         Returns:
-            One row per element.
+            BimDataFrame: One row per element.
         """
         return read_speckle(self.objects, self.bundle, name=name)
 
@@ -138,15 +138,15 @@ def local_client(server: str = DEFAULT_SERVER) -> SpeckleClient | None:
     ``get_accounts_for_server`` keeps one account per user, whichever it lists first).
 
     Args:
-        server: The server's URL; ``https://`` when it has no scheme.
+        server (str): The server's URL; ``https://`` when it has no scheme.
 
     Returns:
-        The signed-in client, or None when the machine has no account for the server whose
-        token works.
+        SpeckleClient | None: The signed-in client, or None when the machine has no account for the
+        server whose token works.
 
     Raises:
-        specklepy.logging.exceptions.SpeckleException: If the server cannot be reached, or
-            fails otherwise than by refusing a token.
+        specklepy.logging.exceptions.SpeckleException: If the server cannot be reached.
+        specklepy.logging.exceptions.SpeckleException: If it fails other than by refusing a token.
     """
     url = _server_url(server)
     with warnings.catch_warnings():
@@ -182,15 +182,15 @@ def token_client(token: str, server: str = DEFAULT_SERVER) -> SpeckleClient:
     machine the token travels unencrypted, which a ``UserWarning`` says.
 
     Args:
-        token: The personal access token.
-        server: The server's URL; ``https://`` when it has no scheme.
+        token (str): The personal access token.
+        server (str): The server's URL; ``https://`` when it has no scheme.
 
     Returns:
-        The signed-in client.
+        SpeckleClient: The signed-in client.
 
     Raises:
-        ValueError: If the server refuses the token, or it lacks the ``profile:read`` scope
-            that tells whose it is.
+        ValueError: If the server refuses the token.
+        ValueError: If the token lacks ``profile:read``, the scope that tells whose it is.
         specklepy.logging.exceptions.SpeckleException: If the server cannot be reached.
     """
     url = _server_url(server)
@@ -226,31 +226,30 @@ def receive(
     The bundle's files (geometry shards included) are downloaded into
     ``<directory>/<model id>/<version id>/``, the layout of the bimpolars bucket's
     ``speckle-bundle`` folder. The v3 objects come from the server when it has them, and are
-    otherwise built from the bundle by :func:`bimpolars.bundle.bundle_objects`, which keeps
+    otherwise built from the bundle by ``bimpolars.bundle.bundle_objects``, which keeps
     the geometry of placed elements and the materials of instance definitions that
     specklepy's own ``Model.to_base()`` (``specklepy.bundle.base_projection``) loses. The
     version is not marked as received.
 
     Args:
-        client: A client signed in to the server, from :func:`local_client` or
-            :func:`token_client`.
-        project_id: The Speckle project id.
-        model_id: The Speckle model id.
-        version_id: The Speckle version id; the model's latest version by default.
-        directory: Where the bundle goes. A new temporary folder by default, which is left
-            for the caller (the bundle is read from it), and removed again if the version
-            has no bundle or the receive fails.
+        client (SpeckleClient): A client signed in to the server, from ``local_client`` or
+            ``token_client``.
+        project_id (str): The Speckle project id.
+        model_id (str): The Speckle model id.
+        version_id (str | None): The Speckle version id; the model's latest version by default.
+        directory (str | os.PathLike[str] | None): Where the bundle goes. A new temporary folder by
+            default, which is left for the caller (the bundle is read from it), and removed again if
+            the version has no bundle or the receive fails.
 
     Returns:
-        The version: ``objects`` and ``bundle`` for :class:`~specklewidgets.SpeckleViewer`
-        and :func:`bimpolars.read_speckle`, or :meth:`ReceivedVersion.bimdataframe`.
+        ReceivedVersion: The version: ``objects`` and ``bundle`` for ``SpeckleViewer``
+        and ``bimpolars.read_speckle``, or ``ReceivedVersion.bimdataframe``.
 
     Raises:
-        ValueError: If the model has no version, the version has no root object (a
-            workspace's version history limit hides it), or it is bundle-only and the server
-            serves no bundle for it.
-        specklepy.logging.exceptions.SpeckleException: If the server refuses or fails a
-            request.
+        ValueError: If the model has no version.
+        ValueError: If the version has no root object: a version history limit hides it.
+        ValueError: If the version is bundle-only and the server serves no bundle for it.
+        specklepy.logging.exceptions.SpeckleException: If the server fails a request.
     """
     version = _version(client, project_id, model_id, version_id)
     referenced = version.referenced_object
@@ -309,32 +308,32 @@ def send(
 ) -> str:
     """Sends a BimDataFrame as a new version of a model.
 
-    The objects are those of :func:`specklewidgets.bim.bim_collection`: one DataObject per
+    The objects are those of ``specklewidgets.bim.bim_collection``: one DataObject per
     row with a mesh (openings left out), its ``id`` as ``applicationId`` and its ``class`` as
     ``category``, its mesh as one Mesh per style, a RenderMaterial per style, grouped into a
-    Collection per class. :func:`receive` and :func:`bimpolars.read_speckle` read them back
+    Collection per class. ``receive`` and ``bimpolars.read_speckle`` read them back
     into those rows. The version is a v3 version, without a bundle; its
-    ``sourceApplication`` is :data:`SOURCE_APPLICATION`.
+    ``sourceApplication`` is ``SOURCE_APPLICATION``.
 
     Args:
-        client: A client signed in to the server with the right to write to the project.
-        bdf: The model.
-        project_id: The Speckle project id.
-        model_id: The id of the project's model the version goes to.
-        message: The version's message.
-        color: Colours the elements by a column or an expression instead of by their styles,
-            as :func:`specklewidgets.bim.bim_collection` does.
-        name: The root collection's name; the CRS's name by default.
+        client (SpeckleClient): A client signed in to the server with the right to write to the
+            project.
+        bdf (BimDataFrame): The model.
+        project_id (str): The Speckle project id.
+        model_id (str): The id of the project's model the version goes to.
+        message (str | None): The version's message.
+        color (str | pl.Expr | None): Colours the elements by a column or an expression instead of
+            by their styles, as ``specklewidgets.bim.bim_collection`` does.
+        name (str | None): The root collection's name; the CRS's name by default.
 
     Returns:
-        The new version's id.
+        str: The new version's id.
 
     Raises:
-        ValueError: If a drawn row has no ``id`` or shares it with another, or ``color``
-            does not give one value per row.
+        ValueError: If a drawn row has no ``id``, or shares it with another.
+        ValueError: If ``color`` does not give one value per row.
         TypeError: If ``color`` gives a nested or binary column.
-        specklepy.logging.exceptions.SpeckleException: If the server refuses or fails a
-            request.
+        specklepy.logging.exceptions.SpeckleException: If the server fails a request.
     """
     root = bim_collection(bdf, color=color, name=name)
     with warnings.catch_warnings():

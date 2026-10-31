@@ -2,10 +2,10 @@
 
 The widget runs Speckle's own viewer (``@speckle/viewer``, the npm package behind the Speckle
 web app, bundled with three.js into the widget) without a Speckle server. The v3 objects of one or
-more models go to the browser as gzipped JSON (:func:`~specklewidgets.models_gz`), and a
+more models go to the browser as gzipped JSON (``models_gz``), and a
 ``SpeckleLoader`` subclass hands each model to ``ObjectLoader2Factory.createFromObjects``,
-the in-memory object loader. A :class:`bimpolars.BimDataFrame` becomes v3 objects first,
-through :func:`specklewidgets.bim.bim_objects`.
+the in-memory object loader. A ``bimpolars.BimDataFrame`` becomes v3 objects first,
+through ``specklewidgets.bim.bim_objects``.
 """
 
 from __future__ import annotations
@@ -38,10 +38,10 @@ class Marker:
     """Axes (x red, y green, z blue) and a label at a named point.
 
     Attributes:
-        name: The label.
-        position: ``(x, y, z)`` in the viewer's world, which is in metres whatever the
-            models' units.
-        size: The length of the axes in metres.
+        name (str): The label.
+        position (tuple[float, float, float]): ``(x, y, z)`` in the viewer's world, which is in
+            metres whatever the models' units.
+        size (float): The length of the axes in metres.
     """
 
     name: str
@@ -53,21 +53,37 @@ class SpeckleViewer(anywidget.AnyWidget):
     """Speckle's web viewer, fed with v3 objects instead of a server URL.
 
     ``SpeckleViewer(models)`` packs one model or a sequence of models with
-    :func:`~specklewidgets.models_gz`; each model is a Speckle version's v3 objects, its root
-    first, as :func:`bimpolars.speckle.version_objects` gives them, or a
-    :class:`bimpolars.BimDataFrame`, which :func:`specklewidgets.bim.bim_objects` turns into
+    ``models_gz``; each model is a Speckle version's v3 objects, its root
+    first, as ``bimpolars.speckle.version_objects`` gives them, or a
+    ``bimpolars.BimDataFrame``, which ``specklewidgets.bim.bim_objects`` turns into
     v3 objects: one element per row with a mesh, coloured by its styles or by ``color``. The
     traits are the wire format and can be set directly as well.
 
     Clicking an element selects it; shift-click adds to the selection and a click on nothing
     clears it. A click on an instance selects its InstanceProxy, whose applicationId is the
     element's, with ``-instance-<n>`` appended when the element has several placements or
-    geometry of its own (:func:`bimpolars.speckle.read_speckle` strips it to key its rows). Its
+    geometry of its own (``bimpolars.speckle.read_speckle`` strips it to key its rows). Its
     ``definitionId`` has the model's root id in front (``<root id>/def-12``), as
-    :func:`~specklewidgets.models_gz` namespaces it.
+    ``models_gz`` namespaces it.
 
     After each load the front end reports ``object_count`` and ``scene_bbox``; read them from a
     cell that references the marimo element, which reruns when they change.
+
+    Args:
+        models (ViewerModel | Sequence[ViewerModel] | None): One model or a sequence of
+            models (→ ``objects_gz``, packed by ``models_gz``). A model is a Speckle
+            version's v3 objects, its root first, parsed or as JSON array text; or a
+            ``bimpolars.BimDataFrame``.
+        color (str | pl.Expr | None): Colours the elements of the BimDataFrames by a column
+            (its name) or a polars expression instead of by their styles; see
+            ``specklewidgets.bim.bim_collection``.
+        markers (Sequence[Marker | Mapping[str, Any]] | None): Axes with a label
+            (→ ``markers``): ``Marker`` or the trait's dicts.
+        **kwargs (Any): Traits, passed through unchanged, such as ``height=600``.
+
+    Raises:
+        ValueError: If ``color`` is given without a BimDataFrame to colour.
+        ValueError: If a model is not one (see ``models_gz``).
     """
 
     _esm = _STATIC / "speckle-viewer.js"
@@ -97,23 +113,6 @@ class SpeckleViewer(anywidget.AnyWidget):
         markers: Sequence[Marker | Mapping[str, Any]] | None = None,
         **kwargs: Any,
     ) -> None:
-        """Pythonic facade over the JSON-flat traits.
-
-        Args:
-            models: One model or a sequence of models (→ ``objects_gz``, packed by
-                :func:`~specklewidgets.models_gz`). A model is a Speckle version's v3
-                objects, its root first, parsed or as JSON array text; or a
-                :class:`bimpolars.BimDataFrame`.
-            color: Colours the elements of the BimDataFrames by a column (its name) or a
-                polars expression instead of by their styles; see
-                :func:`specklewidgets.bim.bim_collection`.
-            markers: Axes with a label (→ ``markers``): :class:`Marker` or the trait's dicts.
-            **kwargs: Traits, passed through unchanged, such as ``height=600``.
-
-        Raises:
-            ValueError: If ``color`` is given without a BimDataFrame to colour, or a model is
-                not one (see :func:`~specklewidgets.models_gz`).
-        """
         if models is not None or color is not None:
             as_models = [] if models is None else _as_models(models)
             kwargs["objects_gz"] = models_gz(*_speckle_models(as_models, color))
