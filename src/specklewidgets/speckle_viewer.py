@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from typing_extensions import TypeIs  # typing's from Python 3.13
 
 type ViewerModel = Model | BimDataFrame
-"""A model as :class:`SpeckleViewer` takes it: a Speckle version's v3 objects, root first
+"""A model as ``SpeckleViewer`` takes it: a Speckle version's v3 objects, root first
 (parsed or as JSON array text), or a BimDataFrame."""
 
 _STATIC = Path(__file__).parent / "static"

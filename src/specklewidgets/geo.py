@@ -53,7 +53,7 @@ PDOK_3D_BUILDINGS = (
 """The 3D Tiles of PDOK's 3D Basisvoorziening buildings (LoD 2.2): the 3D BAG."""
 
 PDOK_3D_ATTRIBUTION = "3D Basisvoorziening © Kadaster (CC BY 4.0)"
-"""The credit line for :data:`PDOK_3D_BUILDINGS`."""
+"""The credit line for ``PDOK_3D_BUILDINGS``."""
 
 PDOK_BAG_PANDEN = "https://api.pdok.nl/kadaster/bag/ogc/v2/collections/pand/items"
 """The BAG's panden (buildings) in PDOK's OGC API Features, in OGC:CRS84."""

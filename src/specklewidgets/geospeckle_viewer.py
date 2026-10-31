@@ -52,7 +52,7 @@ class Tileset(TypedDict):
 
     tileset: dict[str, Any]
     """The tileset JSON, its content URLs absolute (a ``tileset.json`` as 3D Tiles 1.1 has
-    it; :func:`specklewidgets.geo.site_3d_tiles` cuts one to an area)."""
+    it; ``specklewidgets.geo.site_3d_tiles`` cuts one to an area)."""
     ecef_to_world: list[float]
     """A 4x4 matrix, column-major, from ECEF (EPSG:4978), where the tiles are, to the
     viewer's world."""

@@ -66,7 +66,7 @@ DEFAULT_SERVER = "https://app.speckle.systems"
 """Speckle's own server, where a server argument without one points."""
 
 SOURCE_APPLICATION = "specklewidgets"
-"""The ``sourceApplication`` of the versions :func:`send` creates."""
+"""The ``sourceApplication`` of the versions ``send`` creates."""
 
 _DEPRECATIONS = (
     r".*JSON based send/receive pipelines are deprecated",
@@ -249,7 +249,7 @@ def receive(
         ValueError: If the model has no version.
         ValueError: If the version has no root object: a version history limit hides it.
         ValueError: If the version is bundle-only and the server serves no bundle for it.
-        specklepy.logging.exceptions.SpeckleException: If the server fails a request.
+        specklepy.logging.exceptions.SpeckleException: If the server refuses or fails a request.
     """
     version = _version(client, project_id, model_id, version_id)
     referenced = version.referenced_object
@@ -333,7 +333,7 @@ def send(
         ValueError: If a drawn row has no ``id``, or shares it with another.
         ValueError: If ``color`` does not give one value per row.
         TypeError: If ``color`` gives a nested or binary column.
-        specklepy.logging.exceptions.SpeckleException: If the server fails a request.
+        specklepy.logging.exceptions.SpeckleException: If the server refuses or fails a request.
     """
     root = bim_collection(bdf, color=color, name=name)
     with warnings.catch_warnings():

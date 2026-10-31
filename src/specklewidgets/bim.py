@@ -68,7 +68,7 @@ CATEGORICAL_RGB: tuple[Rgb, ...] = tuple(
 )
 """The colours of a categorical ``color`` column, in order: blue, orange, aqua, yellow,
 magenta, green, violet, red. The most common value takes the first; the values past the
-eighth share :data:`OTHER_RGB`."""
+eighth share ``OTHER_RGB``."""
 
 SEQUENTIAL_RGB: tuple[Rgb, ...] = tuple(
     _hex_rgb(code)
@@ -123,7 +123,7 @@ _UNCLASSIFIED = "unclassified"
 """The name of the collection of rows without a class."""
 
 _JSON_PIPELINE_DEPRECATION = r".*JSON based send/receive pipelines are deprecated"
-"""The DeprecationWarning of specklepy's v3 serializer, which :func:`bim_objects` uses on
+"""The DeprecationWarning of specklepy's v3 serializer, which ``bim_objects`` uses on
 purpose: the viewer reads v3 objects."""
 
 
