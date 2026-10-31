@@ -45,8 +45,7 @@ test = [
 ]
 
 [tool.uv.sources]
-# refactor/42-bim-crs-column until bimpolars#45 merges; then main again
-bimpolars = { git = "https://github.com/bedrock-engineer/bimpolars", branch = "refactor/42-bim-crs-column" }
+bimpolars = { git = "https://github.com/bedrock-engineer/bimpolars", branch = "main" }
 
 # uv installs this repo as a path dependency in sandboxed notebooks and caches the built
 # wheel; without these keys a JS rebuild (which only touches static/) never invalidates it
