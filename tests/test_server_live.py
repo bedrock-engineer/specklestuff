@@ -88,7 +88,7 @@ def test_receiving_the_arch_version_gives_the_bucket_frame(tmp_path):
     received = server.receive(
         client, arch.project_id, arch.model_id, arch.version_id, directory=tmp_path
     )
-    assert received.v3_route == "projected"
+    assert received.v3_route == "bundle"
     assert received.bundle == tmp_path / arch.model_id / arch.version_id
     assert received.bimdataframe().equals(arch.frame)
 

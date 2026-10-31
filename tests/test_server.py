@@ -196,7 +196,7 @@ def test_receiving_a_bundle_only_version_gives_the_bucket_frame(fake, client, ar
     )
     # the model's latest version
     received = server.receive(client, PROJECT, ARCH.model_id, directory=tmp_path)
-    assert received.v3_route == "projected"
+    assert received.v3_route == "bundle"
     assert (received.project_id, received.model_id, received.version_id) == (
         PROJECT,
         ARCH.model_id,
@@ -206,7 +206,7 @@ def test_receiving_a_bundle_only_version_gives_the_bucket_frame(fake, client, ar
     assert sorted(path.name for path in received.bundle.iterdir()) == sorted(
         path.name for path in arch.bundle.iterdir() if path.suffix == ".parquet"
     )
-    # bundle_objects reproduces the bucket's projection, object for object but the root
+    # bundle_objects builds the bucket's v3 objects, object for object but the root
     assert {o["id"] for o in received.objects[1:]} == {o["id"] for o in arch.objects[1:]}
     assert received.bimdataframe().equals(arch.frame)
 
@@ -262,12 +262,12 @@ def test_a_failed_receive_removes_its_temporary_folder(fake, client, arch, monke
         made.append(real_mkdtemp(**kwargs))
         return made[-1]
 
-    def projection_fails(folder: Path) -> Any:
-        raise RuntimeError("projection failed")
+    def bundle_objects_fails(folder: Path) -> Any:
+        raise RuntimeError("bundle_objects failed")
 
     monkeypatch.setattr(server.tempfile, "mkdtemp", mkdtemp)
-    monkeypatch.setattr(server, "bundle_objects", projection_fails)
-    with pytest.raises(RuntimeError, match="projection failed"):
+    monkeypatch.setattr(server, "bundle_objects", bundle_objects_fails)
+    with pytest.raises(RuntimeError, match="bundle_objects failed"):
         server.receive(client, PROJECT, ARCH.model_id)
     assert len(made) == 1
     assert not Path(made[0]).exists()

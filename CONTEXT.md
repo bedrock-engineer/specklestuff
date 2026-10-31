@@ -19,7 +19,7 @@ _Avoid_: object (any v3 object, chunks and meshes included), node (the viewer's 
 
 **Definition**:
 An `InstanceDefinitionProxy` on the root: geometry shared by several placements, by
-applicationId (`def-<n>`, which the projection of a Revit bundle numbers per model).
+applicationId (`def-<n>`, which the v3 objects built from a Revit bundle number per model).
 _Avoid_: block, family, type
 
 **Member**:
