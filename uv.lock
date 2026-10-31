@@ -127,7 +127,7 @@ wheels = [
 [[package]]
 name = "bimpolars"
 version = "0.1.0"
-source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=refactor%2F42-bim-crs-column#4d964d18a36a6edeb92e4c124fed8cca4b423282" }
+source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=refactor%2F42-bim-crs-column#6caf7d57c8ab95c5f37b54c58b7ec48b8c243627" }
 dependencies = [
     { name = "numpy" },
     { name = "polars" },
