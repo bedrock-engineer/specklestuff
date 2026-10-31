@@ -127,7 +127,7 @@ wheels = [
 [[package]]
 name = "bimpolars"
 version = "0.1.0"
-source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=main#655fd358c9a11bcfb1e1798233e623a4cab6bc16" }
+source = { git = "https://github.com/bedrock-engineer/bimpolars?branch=main#202ca3f8e7ff6e1fad18aade2a3384717a00ce61" }
 dependencies = [
     { name = "numpy" },
     { name = "polars" },
