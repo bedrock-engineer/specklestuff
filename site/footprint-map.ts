@@ -178,6 +178,11 @@ export class FootprintMap {
       bounds: home ?? undefined,
       fitBoundsOptions: { padding: 40 },
       maxZoom: 22,
+      // Turn, never tilt (joost): a right-drag, Ctrl-drag or pinch turns the map; no drag,
+      // two-finger swipe or Shift+arrow can pitch it, as maxPitch 0 holds whatever asks
+      maxPitch: 0,
+      pitchWithRotate: false,
+      touchPitch: false,
     });
     this.map.addControl(new NavigationControl({ showCompass: true }), "top-left");
     this.map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
