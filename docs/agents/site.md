@@ -53,6 +53,8 @@ before the first paint. `just site-data`,
 - The model goes out as `objects.json.gz`, served as it is (Pages sends no Content-Encoding for
   it), and the page gunzips it as the widget does a Bytes trait.
 - URLs are relative (`base: "./"`), so the page works under any repository's path.
+- The map turns but never tilts (joost): `maxPitch: 0` with `pitchWithRotate` and `touchPitch`
+  off, while `dragRotate` and the pinch's rotation stay on.
 
 ## Known numbers
 
