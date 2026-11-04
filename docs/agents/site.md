@@ -14,6 +14,14 @@ collapsed to the title, which a tap opens; an inline script in `index.html` open
 before the first paint. `just site-data`,
 `just site` and `just site-dev` build and serve it.
 
+The header ends in the repository's GitHub mark (`https://github.com/bedrock-engineer/<SITE>`),
+right of the chevron and outside the `<summary>`, so that it stays in sight with the intro
+collapsed and a tap on it never toggles the intro (joost). Until the model is in, the viewer pane
+shows `site/loading.jpg` under the loading message: a still of the loaded view, which the CSS
+greys out (joost). Retake it when the model or its camera changes, where OSM and PDOK load (not
+the cloud container): a screenshot of `#viewer-pane` on the live page at 1440 × 900, device scale
+2, JPEG quality 70, once `#loading` is hidden and the 3D BAG has streamed in.
+
 ## How it is built
 
 - `sixty5.py` writes its data into `site/public/data/` (gitignored): GeoSpeckleViewer's traits

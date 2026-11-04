@@ -47,6 +47,8 @@ export default defineConfig({
           .replaceAll("<!-- title -->", text(h1))
           .replaceAll("<!-- description -->", description)
           .replace("<!-- url -->", `https://bedrock-engineer.github.io/${site}/`)
+          .replace("<!-- repo -->", `https://github.com/bedrock-engineer/${site}`)
+          .replaceAll("<!-- site -->", site)
           .replace("<!-- intro -->", rest.trim());
       },
     },
