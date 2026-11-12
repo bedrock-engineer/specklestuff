@@ -92,19 +92,21 @@ export function selectedFootprints(footprints: Footprints, ids: string[]) {
   return { features, storeys };
 }
 
+const NO_FOOTPRINTS: Footprints = { type: "FeatureCollection", features: [] };
+
 /**
  * A MapLibre map of a model's footprints on PDOK's topographic map: the building's outline
  * dotted red, and for a selection its footprints filled, with a ring around each so that a column's half
- * metre stands out, and the other footprints of their storeys faint.
+ * metre stands out, and the other footprints of their storeys faint. It starts from the outline
+ * alone, which is small, so that it can be moved before the footprints are in (setFootprints).
  */
 export class FootprintMap {
   readonly map: MaplibreMap;
-  readonly #footprints: Footprints;
+  #footprints = NO_FOOTPRINTS;
   readonly #outline: FeatureCollection;
   #ids: string[] = [];
 
-  constructor(container: HTMLElement, footprints: Footprints, outline: FeatureCollection) {
-    this.#footprints = footprints;
+  constructor(container: HTMLElement, outline: FeatureCollection) {
     this.#outline = outline;
     const home = bounds(outline.features as Feature<Polygon | MultiPolygon>[]);
     this.map = new MaplibreMap({
@@ -114,7 +116,7 @@ export class FootprintMap {
         sources: {
           ...BASEMAPS,
           outline: { type: "geojson", data: outline },
-          footprints: { type: "geojson", data: footprints },
+          footprints: { type: "geojson", data: NO_FOOTPRINTS },
           rings: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         },
         layers: [
@@ -186,6 +188,26 @@ export class FootprintMap {
     });
     this.map.addControl(new NavigationControl({ showCompass: true }), "top-left");
     this.map.addControl(new ScaleControl({ unit: "metric" }), "bottom-left");
+  }
+
+  /** The model's footprints, once they are in; a selection made before shows on them */
+  setFootprints(footprints: Footprints) {
+    this.#footprints = footprints;
+    this.#styled(() => {
+      (this.map.getSource("footprints") as GeoJSONSource).setData(footprints);
+      if (this.#ids.length) {
+        this.select(this.#ids);
+      }
+    });
+  }
+
+  /** Runs apply once the map has its sources, which it takes a frame after it is made */
+  #styled(apply: () => void) {
+    if (this.map.getSource("footprints")) {
+      apply();
+    } else {
+      this.map.once("style.load", apply);
+    }
   }
 
   /** Shows one of the BASEMAPS */

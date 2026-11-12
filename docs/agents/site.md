@@ -14,6 +14,15 @@ collapsed to the title, which a tap opens; an inline script in `index.html` open
 before the first paint. `just site-data`,
 `just site` and `just site-dev` build and serve it.
 
+The header ends in the repository's GitHub mark (`https://github.com/bedrock-engineer/<SITE>`),
+right of the chevron and outside the `<summary>`, so that it stays in sight with the intro
+collapsed and a tap on it never toggles the intro (joost). Until the model is in, the viewer pane
+shows `site/still-3d.webp` faded under the loading message: a still of the loaded view (joost).
+Retake it when the model or its camera changes, from a screenshot of the loaded live page on a
+machine with a GPU (software renderers stripe the faces, and the cloud container can't load OSM
+and PDOK): `#viewer-pane` cropped out, scaled to 1 CSS pixel per pixel, greyscale, WebP quality 50
+(about 30 KB).
+
 ## How it is built
 
 - `sixty5.py` writes its data into `site/public/data/` (gitignored): GeoSpeckleViewer's traits
@@ -24,7 +33,8 @@ before the first paint. `just site-data`,
   (a `StaticModel`: an AnyModel without a kernel, firing `change:<trait>` on `set`), sets
   `height` to the pane's, and follows
   `selected` with `footprint-map.ts` (MapLibre on PDOK's BRT, or its luchtfoto; the building's
-  outline dotted red). `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
+  outline dotted red). The map starts as soon as the small `outline.geojson` is in, so that it
+  moves while the model loads (joost), and gets the footprints when they are in. `splitter.ts` sets the panes' `--viewer-share` and `--map-share`; the
   viewer and the map follow their panes' sizes with ResizeObservers of their own.
 - The header's title and intro are `site/intro/<SITE>.html`, which `vite.config.js` puts into
   `index.html`, the h1 as the `<title>` and `og:title` too: `SITE` is unset (specklestuff) or
