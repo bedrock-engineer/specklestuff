@@ -193,9 +193,20 @@ export class FootprintMap {
   /** The model's footprints, once they are in; a selection made before shows on them */
   setFootprints(footprints: Footprints) {
     this.#footprints = footprints;
-    (this.map.getSource("footprints") as GeoJSONSource).setData(footprints);
-    if (this.#ids.length) {
-      this.select(this.#ids);
+    this.#styled(() => {
+      (this.map.getSource("footprints") as GeoJSONSource).setData(footprints);
+      if (this.#ids.length) {
+        this.select(this.#ids);
+      }
+    });
+  }
+
+  /** Runs apply once the map has its sources, which it takes a frame after it is made */
+  #styled(apply: () => void) {
+    if (this.map.getSource("footprints")) {
+      apply();
+    } else {
+      this.map.once("style.load", apply);
     }
   }
 
