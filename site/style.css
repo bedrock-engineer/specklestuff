@@ -228,7 +228,7 @@ a {
   inset: 0;
 }
 
-/* The message on a still of the loaded view, greyed out: the view to come, in the pane's size */
+/* The message on a still of the loaded view (still-3d.webp, greyscale), faded: the view to come */
 .loading {
   position: absolute;
   inset: 0;
@@ -243,8 +243,7 @@ a {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: url("./loading.jpg") center / cover no-repeat;
-  filter: grayscale(1);
+  background: url("./still-3d.webp") center / cover no-repeat;
   opacity: 0.4;
 }
 

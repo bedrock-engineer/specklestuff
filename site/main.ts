@@ -74,24 +74,30 @@ async function main() {
   // The viewer and the map follow their panes' sizes themselves
   splitter(byId("splitter"), viewerPane.parentElement as HTMLElement);
   try {
-    const [state, objects, footprints, outline] = await Promise.all([
+    // The map first, from the outline alone, which is small: it moves while the model loads
+    const opening = fetchData("outline.geojson")
+      .then((r) => r.json() as Promise<FeatureCollection>)
+      .then((outline) => {
+        const map = new FootprintMap(byId("map"), outline);
+        for (const button of document.querySelectorAll<HTMLButtonElement>(".basemaps button")) {
+          button.addEventListener("click", () => {
+            map.setBasemap(button.dataset.basemap as Basemap);
+            for (const other of document.querySelectorAll(".basemaps button")) {
+              other.setAttribute("aria-pressed", String(other === button));
+            }
+          });
+        }
+        return map;
+      });
+    const [state, objects, footprints, map] = await Promise.all([
       fetchData("viewer.json").then(
         (r) => r.json() as Promise<Omit<GeoSpeckleViewerModel, "objects_gz">>,
       ),
       fetchData("objects.json.gz").then((r) => r.arrayBuffer()),
       fetchData("footprints.geojson").then((r) => r.json() as Promise<Footprints>),
-      fetchData("outline.geojson").then((r) => r.json() as Promise<FeatureCollection>),
+      opening,
     ]);
-
-    const map = new FootprintMap(byId("map"), footprints, outline);
-    for (const button of document.querySelectorAll<HTMLButtonElement>(".basemaps button")) {
-      button.addEventListener("click", () => {
-        map.setBasemap(button.dataset.basemap as Basemap);
-        for (const other of document.querySelectorAll(".basemaps button")) {
-          other.setAttribute("aria-pressed", String(other === button));
-        }
-      });
-    }
+    map.setFootprints(footprints);
 
     // The viewer fills its pane: its height trait follows the pane's
     const { model, loaded } = mountGeoSpeckleViewer(byId("viewer"), {
